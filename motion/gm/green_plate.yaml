@@ -1,0 +1,79 @@
+# Plate GREEN: recorded arm path from dataset 6d6bdce3 (LeRobot v3), episode 9.
+# Release frame 188 = 6.267 s (gripper crosses 6.0 upward after a brick hold).
+# End frame 339 = 11.300 s (RELAXED: recording end, shoulder_lift -99.03 (within 5 of -98); no 15-frame stationary dwell exists).
+# Waypoints every 0.25 s (7.5 frames at 30 fps), w00 = release (plate) pose, last waypoint = home.
+# Arm joints are the recorded values (rounded to 4 decimals); gripper fixed at 25.0 (open, no brick).
+# Speed cap 25.0 units/s = min(0.5 x recorded peak 100.726 units/s, executor default 25.0).
+# No placeholder key: poses come from recorded data, not from teach_poses.py.
+unit: normalized
+joint_order: [shoulder_pan, shoulder_lift, elbow_flex, wrist_flex, wrist_roll, gripper]
+poses:
+  green_w00: [-57.2598, 18.5185, 7.8040, 36.1594, -52.6797, 25.0000]
+  green_w01: [-57.2598, 18.0776, 7.9855, 36.1594, -52.6275, 25.0000]
+  green_w02: [-57.1736, 17.2840, 7.9855, 39.5507, -51.7908, 25.0000]
+  green_w03: [-54.5885, 8.3774, 6.7151, 48.2832, -48.7582, 25.0000]
+  green_w04: [-50.2801, 0.6173, 6.5336, 57.1852, -46.4052, 25.0000]
+  green_w05: [-47.0918, -6.1728, 6.5336, 63.6287, -45.5163, 25.0000]
+  green_w06: [-40.1120, -10.7584, 6.5336, 67.4438, -43.6340, 25.0000]
+  green_w07: [-27.1004, -17.1076, 6.5336, 67.7830, -40.7059, 25.0000]
+  green_w08: [-14.3473, -21.1640, 6.5336, 67.7830, -40.2876, 25.0000]
+  green_w09: [-4.7824, -26.8078, 6.5336, 67.7830, -45.3072, 25.0000]
+  green_w10: [-0.2154, -31.6578, 6.5336, 72.1068, -50.4837, 25.0000]
+  green_w11: [-0.0431, -40.8289, 14.3376, 73.6329, -51.0588, 25.0000]
+  green_w12: [-0.4739, -59.5238, 29.7641, 73.6329, -50.3268, 25.0000]
+  green_w13: [-2.9729, -77.8660, 48.8203, 74.0568, -48.6013, 25.0000]
+  green_w14: [-5.2994, -85.9788, 60.3448, 71.2590, -47.9216, 25.0000]
+  green_w15: [-4.7824, -91.4462, 73.8657, 66.8504, -47.9216, 25.0000]
+  green_w16: [-1.3356, -98.5891, 84.2105, 66.3417, -47.9216, 25.0000]
+  green_w17: [-0.5601, -99.1182, 90.6534, 64.5613, -47.9216, 25.0000]
+  green_w18: [-0.2154, -99.0300, 95.0998, 62.7808, -47.9216, 25.0000]
+  green_w19: [0.2154, -99.0300, 95.9165, 62.2721, -47.9216, 25.0000]
+  green_w20: [0.2154, -99.1182, 96.9147, 62.1874, -47.9216, 25.0000]
+  green_w21: [0.2154, -99.0300, 97.0054, 62.1874, -47.9216, 25.0000]
+sequences:
+  green_plate_to_home:
+    - {pose: green_w00, speed: 25.000}
+    - {pose: green_w01, speed: 25.000}
+    - {pose: green_w02, speed: 25.000}
+    - {pose: green_w03, speed: 25.000}
+    - {pose: green_w04, speed: 25.000}
+    - {pose: green_w05, speed: 25.000}
+    - {pose: green_w06, speed: 25.000}
+    - {pose: green_w07, speed: 25.000}
+    - {pose: green_w08, speed: 25.000}
+    - {pose: green_w09, speed: 25.000}
+    - {pose: green_w10, speed: 25.000}
+    - {pose: green_w11, speed: 25.000}
+    - {pose: green_w12, speed: 25.000}
+    - {pose: green_w13, speed: 25.000}
+    - {pose: green_w14, speed: 25.000}
+    - {pose: green_w15, speed: 25.000}
+    - {pose: green_w16, speed: 25.000}
+    - {pose: green_w17, speed: 25.000}
+    - {pose: green_w18, speed: 25.000}
+    - {pose: green_w19, speed: 25.000}
+    - {pose: green_w20, speed: 25.000}
+    - {pose: green_w21, speed: 25.000}
+  green_home_to_plate:
+    - {pose: green_w21, speed: 25.000}
+    - {pose: green_w20, speed: 25.000}
+    - {pose: green_w19, speed: 25.000}
+    - {pose: green_w18, speed: 25.000}
+    - {pose: green_w17, speed: 25.000}
+    - {pose: green_w16, speed: 25.000}
+    - {pose: green_w15, speed: 25.000}
+    - {pose: green_w14, speed: 25.000}
+    - {pose: green_w13, speed: 25.000}
+    - {pose: green_w12, speed: 25.000}
+    - {pose: green_w11, speed: 25.000}
+    - {pose: green_w10, speed: 25.000}
+    - {pose: green_w09, speed: 25.000}
+    - {pose: green_w08, speed: 25.000}
+    - {pose: green_w07, speed: 25.000}
+    - {pose: green_w06, speed: 25.000}
+    - {pose: green_w05, speed: 25.000}
+    - {pose: green_w04, speed: 25.000}
+    - {pose: green_w03, speed: 25.000}
+    - {pose: green_w02, speed: 25.000}
+    - {pose: green_w01, speed: 25.000}
+    - {pose: green_w00, speed: 25.000, dwell_s: 1.0}

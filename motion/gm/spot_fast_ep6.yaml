@@ -1,0 +1,1301 @@
+{
+ "placeholder": false,
+ "unit": "normalized",
+ "joint_order": [
+  "shoulder_pan",
+  "shoulder_lift",
+  "elbow_flex",
+  "wrist_flex",
+  "wrist_roll",
+  "gripper"
+ ],
+ "poses": {
+  "blue_wp0": [
+   31.93,
+   -19.05,
+   47.91,
+   49.3,
+   -40.65,
+   25.0
+  ],
+  "blue_wp1": [
+   24.43,
+   -19.05,
+   47.01,
+   51.59,
+   -40.97,
+   25.0
+  ],
+  "blue_wp2": [
+   3.23,
+   -19.05,
+   26.23,
+   67.36,
+   -47.87,
+   25.0
+  ],
+  "blue_wp3": [
+   -16.5,
+   -19.14,
+   17.97,
+   76.18,
+   -52.37,
+   25.0
+  ],
+  "blue_wp4": [
+   -24.17,
+   -28.4,
+   17.24,
+   77.19,
+   -53.1,
+   25.0
+  ],
+  "blue_wp5": [
+   -13.74,
+   -37.48,
+   17.15,
+   78.04,
+   -52.37,
+   25.0
+  ],
+  "blue_wp6": [
+   -12.02,
+   -59.61,
+   17.06,
+   86.27,
+   -52.31,
+   25.0
+  ],
+  "blue_wp7": [
+   -6.68,
+   -81.48,
+   37.93,
+   86.86,
+   -47.29,
+   25.0
+  ],
+  "blue_wp8": [
+   -6.76,
+   -86.24,
+   67.15,
+   70.84,
+   -44.89,
+   25.0
+  ],
+  "blue_wp9": [
+   -6.16,
+   -96.91,
+   83.58,
+   66.34,
+   -44.89,
+   25.0
+  ],
+  "blue_wp10": [
+   -5.47,
+   -99.03,
+   94.92,
+   66.26,
+   -44.89,
+   25.0
+  ],
+  "blue_wp11": [
+   -5.21,
+   -99.03,
+   96.37,
+   65.92,
+   -44.99,
+   25.0
+  ],
+  "green_wp0": [
+   -51.83,
+   53.44,
+   -51.91,
+   84.82,
+   -45.46,
+   25.0
+  ],
+  "green_wp1": [
+   -51.83,
+   52.56,
+   -51.91,
+   88.13,
+   -45.46,
+   25.0
+  ],
+  "green_wp2": [
+   -47.18,
+   38.27,
+   -51.91,
+   96.18,
+   -45.41,
+   25.0
+  ],
+  "green_wp3": [
+   -30.46,
+   15.61,
+   -50.45,
+   97.97,
+   -45.41,
+   25.0
+  ],
+  "green_wp4": [
+   -13.49,
+   -6.53,
+   -36.66,
+   98.05,
+   -45.41,
+   25.0
+  ],
+  "green_wp5": [
+   -8.49,
+   -25.31,
+   -28.49,
+   98.05,
+   -45.46,
+   25.0
+  ],
+  "green_wp6": [
+   -5.82,
+   -43.92,
+   -14.88,
+   97.88,
+   -45.57,
+   25.0
+  ],
+  "green_wp7": [
+   -4.09,
+   -77.95,
+   17.24,
+   87.11,
+   -44.78,
+   25.0
+  ],
+  "green_wp8": [
+   -4.18,
+   -96.3,
+   50.18,
+   76.85,
+   -42.75,
+   25.0
+  ],
+  "green_wp9": [
+   -4.18,
+   -98.68,
+   62.98,
+   73.46,
+   -42.75,
+   25.0
+  ],
+  "green_wp10": [
+   -4.18,
+   -98.68,
+   73.41,
+   73.12,
+   -42.8,
+   25.0
+  ],
+  "green_wp11": [
+   -4.18,
+   -98.77,
+   86.66,
+   71.17,
+   -45.31,
+   25.0
+  ],
+  "spot_open": [
+   -13.14,
+   12.61,
+   1.27,
+   56.25,
+   -49.8,
+   25.0
+  ],
+  "spot_closed": [
+   -13.14,
+   12.61,
+   1.27,
+   56.25,
+   -49.8,
+   2.0
+  ],
+  "spot_wp0_open": [
+   -13.14,
+   12.26,
+   1.27,
+   56.34,
+   -49.23,
+   25.0
+  ],
+  "spot_wp0_closed": [
+   -13.14,
+   12.26,
+   1.27,
+   56.34,
+   -49.23,
+   2.0
+  ],
+  "spot_wp1_open": [
+   -12.02,
+   6.53,
+   1.54,
+   57.86,
+   -49.23,
+   25.0
+  ],
+  "spot_wp1_closed": [
+   -12.02,
+   6.53,
+   1.54,
+   57.86,
+   -49.23,
+   2.0
+  ],
+  "spot_wp2_open": [
+   -8.23,
+   -18.96,
+   10.34,
+   61.59,
+   -49.23,
+   25.0
+  ],
+  "spot_wp2_closed": [
+   -8.23,
+   -18.96,
+   10.34,
+   61.59,
+   -49.23,
+   2.0
+  ],
+  "spot_wp3_open": [
+   1.85,
+   -59.08,
+   51.63,
+   50.06,
+   -49.28,
+   25.0
+  ],
+  "spot_wp3_closed": [
+   1.85,
+   -59.08,
+   51.63,
+   50.06,
+   -49.28,
+   2.0
+  ],
+  "spot_wp4_open": [
+   -3.15,
+   -83.16,
+   70.42,
+   57.02,
+   -47.56,
+   25.0
+  ],
+  "spot_wp4_closed": [
+   -3.15,
+   -83.16,
+   70.42,
+   57.02,
+   -47.56,
+   2.0
+  ],
+  "spot_wp5_open": [
+   -5.39,
+   -96.38,
+   76.77,
+   63.88,
+   -47.56,
+   25.0
+  ],
+  "spot_wp5_closed": [
+   -5.39,
+   -96.38,
+   76.77,
+   63.88,
+   -47.56,
+   2.0
+  ],
+  "spot_wp6_open": [
+   -3.15,
+   -98.68,
+   93.92,
+   63.46,
+   -48.44,
+   25.0
+  ],
+  "spot_wp6_closed": [
+   -3.15,
+   -98.68,
+   93.92,
+   63.46,
+   -48.44,
+   2.0
+  ],
+  "spot_wp7_open": [
+   -4.87,
+   -98.68,
+   95.92,
+   62.27,
+   -48.5,
+   25.0
+  ],
+  "spot_wp7_closed": [
+   -4.87,
+   -98.68,
+   95.92,
+   62.27,
+   -48.5,
+   2.0
+  ],
+  "blue_wp0_closed": [
+   31.93,
+   -19.05,
+   47.91,
+   49.3,
+   -40.65,
+   2.0
+  ],
+  "blue_wp1_closed": [
+   24.43,
+   -19.05,
+   47.01,
+   51.59,
+   -40.97,
+   2.0
+  ],
+  "blue_wp2_closed": [
+   3.23,
+   -19.05,
+   26.23,
+   67.36,
+   -47.87,
+   2.0
+  ],
+  "blue_wp3_closed": [
+   -16.5,
+   -19.14,
+   17.97,
+   76.18,
+   -52.37,
+   2.0
+  ],
+  "blue_wp4_closed": [
+   -24.17,
+   -28.4,
+   17.24,
+   77.19,
+   -53.1,
+   2.0
+  ],
+  "blue_wp5_closed": [
+   -13.74,
+   -37.48,
+   17.15,
+   78.04,
+   -52.37,
+   2.0
+  ],
+  "blue_wp6_closed": [
+   -12.02,
+   -59.61,
+   17.06,
+   86.27,
+   -52.31,
+   2.0
+  ],
+  "blue_wp7_closed": [
+   -6.68,
+   -81.48,
+   37.93,
+   86.86,
+   -47.29,
+   2.0
+  ],
+  "blue_wp8_closed": [
+   -6.76,
+   -86.24,
+   67.15,
+   70.84,
+   -44.89,
+   2.0
+  ],
+  "blue_wp9_closed": [
+   -6.16,
+   -96.91,
+   83.58,
+   66.34,
+   -44.89,
+   2.0
+  ],
+  "blue_wp10_closed": [
+   -5.47,
+   -99.03,
+   94.92,
+   66.26,
+   -44.89,
+   2.0
+  ],
+  "blue_wp11_closed": [
+   -5.21,
+   -99.03,
+   96.37,
+   65.92,
+   -44.99,
+   2.0
+  ],
+  "green_wp0_closed": [
+   -51.83,
+   53.44,
+   -51.91,
+   84.82,
+   -45.46,
+   2.0
+  ],
+  "green_wp1_closed": [
+   -51.83,
+   52.56,
+   -51.91,
+   88.13,
+   -45.46,
+   2.0
+  ],
+  "green_wp2_closed": [
+   -47.18,
+   38.27,
+   -51.91,
+   96.18,
+   -45.41,
+   2.0
+  ],
+  "green_wp3_closed": [
+   -30.46,
+   15.61,
+   -50.45,
+   97.97,
+   -45.41,
+   2.0
+  ],
+  "green_wp4_closed": [
+   -13.49,
+   -6.53,
+   -36.66,
+   98.05,
+   -45.41,
+   2.0
+  ],
+  "green_wp5_closed": [
+   -8.49,
+   -25.31,
+   -28.49,
+   98.05,
+   -45.46,
+   2.0
+  ],
+  "green_wp6_closed": [
+   -5.82,
+   -43.92,
+   -14.88,
+   97.88,
+   -45.57,
+   2.0
+  ],
+  "green_wp7_closed": [
+   -4.09,
+   -77.95,
+   17.24,
+   87.11,
+   -44.78,
+   2.0
+  ],
+  "green_wp8_closed": [
+   -4.18,
+   -96.3,
+   50.18,
+   76.85,
+   -42.75,
+   2.0
+  ],
+  "green_wp9_closed": [
+   -4.18,
+   -98.68,
+   62.98,
+   73.46,
+   -42.75,
+   2.0
+  ],
+  "green_wp10_closed": [
+   -4.18,
+   -98.68,
+   73.41,
+   73.12,
+   -42.8,
+   2.0
+  ],
+  "green_wp11_closed": [
+   -4.18,
+   -98.77,
+   86.66,
+   71.17,
+   -45.31,
+   2.0
+  ]
+ },
+ "sequences": {
+  "home_to_spot": [
+   {
+    "pose": "spot_wp7_open",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp6_open",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp5_open",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp4_open",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp3_open",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp2_open",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp1_open",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp0_open",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_open",
+    "speed": 15.0,
+    "dwell_s": 0.5
+   }
+  ],
+  "grasp_at_spot": [
+   {
+    "pose": "spot_open",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_closed",
+    "speed": 15.0,
+    "dwell_s": 0.8
+   }
+  ],
+  "spot_to_home_carry": [
+   {
+    "pose": "spot_wp0_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp1_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp2_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp3_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp4_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp5_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp6_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp7_closed",
+    "speed": 15.0
+   }
+  ],
+  "spot_to_home_open": [
+   {
+    "pose": "spot_wp0_open",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp1_open",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp2_open",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp3_open",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp4_open",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp5_open",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp6_open",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp7_open",
+    "speed": 15.0
+   }
+  ],
+  "home_to_blue_carry": [
+   {
+    "pose": "blue_wp11_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "blue_wp10_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "blue_wp9_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "blue_wp8_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "blue_wp7_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "blue_wp6_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "blue_wp5_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "blue_wp4_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "blue_wp3_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "blue_wp2_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "blue_wp1_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "blue_wp0_closed",
+    "speed": 15.0
+   }
+  ],
+  "release_blue": [
+   {
+    "pose": "blue_wp0",
+    "speed": 15.0,
+    "dwell_s": 0.8
+   }
+  ],
+  "blue_to_home": [
+   {
+    "pose": "blue_wp0",
+    "speed": 15.0
+   },
+   {
+    "pose": "blue_wp1",
+    "speed": 15.0
+   },
+   {
+    "pose": "blue_wp2",
+    "speed": 15.0
+   },
+   {
+    "pose": "blue_wp3",
+    "speed": 15.0
+   },
+   {
+    "pose": "blue_wp4",
+    "speed": 15.0
+   },
+   {
+    "pose": "blue_wp5",
+    "speed": 15.0
+   },
+   {
+    "pose": "blue_wp6",
+    "speed": 15.0
+   },
+   {
+    "pose": "blue_wp7",
+    "speed": 15.0
+   },
+   {
+    "pose": "blue_wp8",
+    "speed": 15.0
+   },
+   {
+    "pose": "blue_wp9",
+    "speed": 15.0
+   },
+   {
+    "pose": "blue_wp10",
+    "speed": 15.0
+   },
+   {
+    "pose": "blue_wp11",
+    "speed": 15.0
+   }
+  ],
+  "cycle_blue": [
+   {
+    "pose": "spot_wp7_open",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp6_open",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp5_open",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp4_open",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp3_open",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp2_open",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp1_open",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp0_open",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_open",
+    "speed": 15.0,
+    "dwell_s": 0.5
+   },
+   {
+    "pose": "spot_open",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_closed",
+    "speed": 15.0,
+    "dwell_s": 0.8
+   },
+   {
+    "pose": "spot_wp0_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp1_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp2_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp3_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp4_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp5_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp6_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp7_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "blue_wp11_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "blue_wp10_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "blue_wp9_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "blue_wp8_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "blue_wp7_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "blue_wp6_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "blue_wp5_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "blue_wp4_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "blue_wp3_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "blue_wp2_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "blue_wp1_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "blue_wp0_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "blue_wp0",
+    "speed": 15.0,
+    "dwell_s": 0.8
+   },
+   {
+    "pose": "blue_wp1",
+    "speed": 15.0
+   },
+   {
+    "pose": "blue_wp2",
+    "speed": 15.0
+   },
+   {
+    "pose": "blue_wp3",
+    "speed": 15.0
+   },
+   {
+    "pose": "blue_wp4",
+    "speed": 15.0
+   },
+   {
+    "pose": "blue_wp5",
+    "speed": 15.0
+   },
+   {
+    "pose": "blue_wp6",
+    "speed": 15.0
+   },
+   {
+    "pose": "blue_wp7",
+    "speed": 15.0
+   },
+   {
+    "pose": "blue_wp8",
+    "speed": 15.0
+   },
+   {
+    "pose": "blue_wp9",
+    "speed": 15.0
+   },
+   {
+    "pose": "blue_wp10",
+    "speed": 15.0
+   },
+   {
+    "pose": "blue_wp11",
+    "speed": 15.0
+   }
+  ],
+  "home_to_green_carry": [
+   {
+    "pose": "green_wp11_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "green_wp10_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "green_wp9_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "green_wp8_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "green_wp7_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "green_wp6_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "green_wp5_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "green_wp4_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "green_wp3_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "green_wp2_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "green_wp1_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "green_wp0_closed",
+    "speed": 15.0
+   }
+  ],
+  "release_green": [
+   {
+    "pose": "green_wp0",
+    "speed": 15.0,
+    "dwell_s": 0.8
+   }
+  ],
+  "green_to_home": [
+   {
+    "pose": "green_wp0",
+    "speed": 15.0
+   },
+   {
+    "pose": "green_wp1",
+    "speed": 15.0
+   },
+   {
+    "pose": "green_wp2",
+    "speed": 15.0
+   },
+   {
+    "pose": "green_wp3",
+    "speed": 15.0
+   },
+   {
+    "pose": "green_wp4",
+    "speed": 15.0
+   },
+   {
+    "pose": "green_wp5",
+    "speed": 15.0
+   },
+   {
+    "pose": "green_wp6",
+    "speed": 15.0
+   },
+   {
+    "pose": "green_wp7",
+    "speed": 15.0
+   },
+   {
+    "pose": "green_wp8",
+    "speed": 15.0
+   },
+   {
+    "pose": "green_wp9",
+    "speed": 15.0
+   },
+   {
+    "pose": "green_wp10",
+    "speed": 15.0
+   },
+   {
+    "pose": "green_wp11",
+    "speed": 15.0
+   }
+  ],
+  "cycle_green": [
+   {
+    "pose": "spot_wp7_open",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp6_open",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp5_open",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp4_open",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp3_open",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp2_open",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp1_open",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp0_open",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_open",
+    "speed": 15.0,
+    "dwell_s": 0.5
+   },
+   {
+    "pose": "spot_open",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_closed",
+    "speed": 15.0,
+    "dwell_s": 0.8
+   },
+   {
+    "pose": "spot_wp0_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp1_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp2_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp3_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp4_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp5_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp6_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp7_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "green_wp11_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "green_wp10_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "green_wp9_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "green_wp8_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "green_wp7_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "green_wp6_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "green_wp5_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "green_wp4_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "green_wp3_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "green_wp2_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "green_wp1_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "green_wp0_closed",
+    "speed": 15.0
+   },
+   {
+    "pose": "green_wp0",
+    "speed": 15.0,
+    "dwell_s": 0.8
+   },
+   {
+    "pose": "green_wp1",
+    "speed": 15.0
+   },
+   {
+    "pose": "green_wp2",
+    "speed": 15.0
+   },
+   {
+    "pose": "green_wp3",
+    "speed": 15.0
+   },
+   {
+    "pose": "green_wp4",
+    "speed": 15.0
+   },
+   {
+    "pose": "green_wp5",
+    "speed": 15.0
+   },
+   {
+    "pose": "green_wp6",
+    "speed": 15.0
+   },
+   {
+    "pose": "green_wp7",
+    "speed": 15.0
+   },
+   {
+    "pose": "green_wp8",
+    "speed": 15.0
+   },
+   {
+    "pose": "green_wp9",
+    "speed": 15.0
+   },
+   {
+    "pose": "green_wp10",
+    "speed": 15.0
+   },
+   {
+    "pose": "green_wp11",
+    "speed": 15.0
+   }
+  ],
+  "spot_dry_touch": [
+   {
+    "pose": "spot_wp7_open",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp6_open",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp5_open",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp4_open",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp3_open",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp2_open",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp1_open",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp0_open",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_open",
+    "speed": 15.0,
+    "dwell_s": 0.5
+   },
+   {
+    "pose": "spot_wp0_open",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp1_open",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp2_open",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp3_open",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp4_open",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp5_open",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp6_open",
+    "speed": 15.0
+   },
+   {
+    "pose": "spot_wp7_open",
+    "speed": 15.0
+   }
+  ]
+ }
+}

@@ -1,0 +1,42 @@
+view,file,label,holding,note
+top,logs/monitor/estop_top_1794673145.jpg,hand_outside,0,"fingers on the laptop at the top-left corner, off the mat and out of reach (relabelled 20:00Z after a cross-check with P2-B-ANALYZE; was nohand)"
+top,logs/monitor/estop_top_1794673200.jpg,nohand,0,no hand visible
+top,logs/monitor/estop_top_1794675022.jpg,hand,0,
+top,logs/monitor/estop_top_1794677184.jpg,hand,0,
+top,logs/monitor/estop_top_1794677552.jpg,hand,0,
+top,logs/monitor/estop_top_1794677636.jpg,hand,0,
+top,logs/monitor/estop_top_1794677654.jpg,hand,0,hand reaching in at the top edge next to the arm (relabelled 20:01Z from hand_partial: that label was judged on a crop that cut the top 30 px)
+top,logs/monitor/estop_top_1794677779.jpg,hand,0,hand reaching in at the top edge next to the arm (relabelled 20:01Z from hand_partial: that label was judged on a crop that cut the top 30 px)
+top,logs/monitor/estop_top_1794677889.jpg,hand,0,
+top,logs/monitor/estop_top_1794677902.jpg,hand,0,
+top,logs/monitor/estop_top_1794677923.jpg,hand,0,hand reaching in at the top edge next to the arm (relabelled 20:01Z from hand_partial: that label was judged on a crop that cut the top 30 px)
+top,logs/monitor/estop_top_1794677939.jpg,hand,0,"hand reaching over the mat near the arm from the top edge (added 20:01Z); partial: fingers 45-65 px in from the top edge, wrist above the frame (P3-LABEL-OURS native-size check)"
+top,logs/monitor/estop_top_1794677947.jpg,hand,0,hand reaching in at the top edge next to the arm (relabelled 20:01Z from hand_partial: that label was judged on a crop that cut the top 30 px)
+top,logs/monitor/estop_top_1794677973.jpg,hand,0,"hand reaching toward the arm from the top edge (added 20:01Z); partial: fingers 45-65 px in from the top edge, wrist above the frame (P3-LABEL-OURS native-size check)"
+top,logs/monitor/estop_top_1794678371.jpg,hand,0,
+top,logs/monitor/estop_top_1794678583.jpg,hand,0,
+top,logs/monitor/estop_top_1794679239.jpg,hand,0,
+close,logs/monitor/estop_close_1794673200.jpg,nohand,0,
+close,logs/monitor/estop_close_1794677636.jpg,hand,0,
+close,logs/monitor/estop_close_1794677939.jpg,hand,0,fingers at the top-left over the blue plate (full-res check 18:40Z)
+close,logs/monitor/estop_close_1794679304.jpg,nohand,1,gripper mount + held white brick
+close,logs/monitor/estop_close_1794679373.jpg,nohand,0,warm speckles on mat
+close,logs/monitor/estop_close_1794679818.jpg,nohand,0,mat speckles + cream brick
+close,logs/monitor/estop_close_1794679859.jpg,nohand,1,white brick carried between the jaws at the top edge; holding=1
+close,logs/monitor/estop_close_1794679874.jpg,nohand,1,white brick held between the red jaws at the top edge (carry-over since 18:10:17Z per the loop log; holding corrected 20:15Z after P3-LABEL-OURS); taped cream brick and a red brick on the mat
+close,logs/monitor/estop_close_1794679987.jpg,nohand,1,white brick held between the red jaws at the top edge (carry-over since 18:10:17Z per the loop log; holding corrected 20:15Z after P3-LABEL-OURS); taped cream brick and a red brick on the mat
+wrist,logs/monitor/estop_wrist_1794675172.jpg,nohand,1,white brick; wrist view is gated off while holding
+wrist,logs/monitor/estop_wrist_1794679388.jpg,nohand,1,white brick held between the jaws; wrist view is gated off while holding
+wrist,logs/monitor/estop_wrist_1794679389.jpg,nohand,1,white brick held between the jaws; wrist view is gated off while holding
+wrist,logs/monitor/estop_wrist_1794679390.jpg,nohand,1,white brick held between the jaws; wrist view is gated off while holding
+wrist,logs/monitor/estop_wrist_1794679391.jpg,nohand,1,white brick held between the jaws; wrist view is gated off while holding
+wrist,logs/monitor/estop_wrist_1794679392.jpg,nohand,1,white brick held between the jaws; wrist view is gated off while holding
+wrist,logs/monitor/estop_wrist_1794679393.jpg,nohand,1,white brick held between the jaws; wrist view is gated off while holding
+wrist,logs/monitor/estop_wrist_1794679394.jpg,nohand,1,white brick held between the jaws; wrist view is gated off while holding
+wrist,logs/monitor/estop_wrist_1794679395.jpg,nohand,1,white brick held between the jaws; wrist view is gated off while holding
+wrist,logs/monitor/estop_wrist_1794679396.jpg,nohand,1,white brick held between the jaws; wrist view is gated off while holding
+wrist,logs/monitor/estop_wrist_1794679397.jpg,nohand,1,white brick held between the jaws; wrist view is gated off while holding
+wrist,logs/monitor/estop_wrist_1794679398.jpg,nohand,1,white brick held between the jaws; wrist view is gated off while holding
+wrist,logs/monitor/estop_wrist_1794679399.jpg,nohand,1,white brick held between the jaws; wrist view is gated off while holding
+wrist,logs/monitor/estop_wrist_1794679401.jpg,nohand,1,white brick held between the jaws; skin-coloured shapes at the bottom corners are background: the top camera at the same second shows no hand in the cell (checked 20:00Z)
+wrist,logs/monitor/estop_wrist_1794679402.jpg,nohand,1,white brick held between the jaws; skin-coloured shapes at the bottom corners are background: the top camera at the same second shows no hand in the cell (checked 20:00Z)

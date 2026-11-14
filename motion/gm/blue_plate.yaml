@@ -1,0 +1,109 @@
+# Plate BLUE: recorded arm path from dataset 6d6bdce3 (LeRobot v3), episode 11.
+# Release frame 600 = 20.000 s (gripper crosses 6.0 upward after a brick hold).
+# End frame 833 = 27.767 s (strict home: shoulder_lift within 5 of -98 and 15 frames speed < 1.0 units/s).
+# Waypoints every 0.25 s (7.5 frames at 30 fps), w00 = release (plate) pose, last waypoint = home.
+# Arm joints are the recorded values (rounded to 4 decimals); gripper fixed at 25.0 (open, no brick).
+# Speed cap 25.0 units/s = min(0.5 x recorded peak 111.615 units/s, executor default 25.0).
+# No placeholder key: poses come from recorded data, not from teach_poses.py.
+unit: normalized
+joint_order: [shoulder_pan, shoulder_lift, elbow_flex, wrist_flex, wrist_roll, gripper]
+poses:
+  blue_w00: [32.0121, -19.0476, 47.9129, 49.3006, -40.6536, 25.0000]
+  blue_w01: [31.9259, -19.0476, 47.9129, 49.3006, -40.6536, 25.0000]
+  blue_w02: [32.0121, -19.0476, 47.9129, 49.3006, -40.6536, 25.0000]
+  blue_w03: [32.0121, -19.0476, 47.9129, 49.3006, -40.6536, 25.0000]
+  blue_w04: [32.0121, -19.0476, 47.9129, 49.3006, -40.6536, 25.0000]
+  blue_w05: [32.0121, -19.0476, 47.9129, 49.3006, -40.6536, 25.0000]
+  blue_w06: [32.0121, -19.0476, 47.9129, 49.3006, -40.6536, 25.0000]
+  blue_w07: [32.0121, -19.0476, 47.9129, 49.3006, -40.6536, 25.0000]
+  blue_w08: [32.0121, -19.0476, 47.9129, 49.3006, -40.6536, 25.0000]
+  blue_w09: [32.0121, -19.0476, 47.9129, 49.3006, -40.6536, 25.0000]
+  blue_w10: [32.0121, -19.0476, 47.9129, 49.3006, -40.6536, 25.0000]
+  blue_w11: [32.0121, -19.0476, 47.9129, 49.3006, -40.6536, 25.0000]
+  blue_w12: [29.5993, -19.0476, 47.9129, 49.3853, -40.6536, 25.0000]
+  blue_w13: [20.2930, -19.1358, 41.8330, 54.6418, -42.6405, 25.0000]
+  blue_w14: [7.8845, -19.0476, 30.5808, 63.5439, -46.6144, 25.0000]
+  blue_w15: [-5.2994, -19.0476, 21.6878, 72.1068, -49.8562, 25.0000]
+  blue_w16: [-18.5696, -19.4885, 17.5136, 76.7698, -52.6797, 25.0000]
+  blue_w17: [-23.9983, -29.3651, 17.2414, 77.1937, -53.0980, 25.0000]
+  blue_w18: [-16.9324, -33.5979, 17.1506, 77.4481, -53.0980, 25.0000]
+  blue_w19: [-13.3132, -42.4162, 17.1506, 78.2959, -52.3137, 25.0000]
+  blue_w20: [-13.3132, -54.4974, 17.0599, 84.0610, -52.3137, 25.0000]
+  blue_w21: [-9.6941, -64.8148, 20.5989, 86.8588, -51.9477, 25.0000]
+  blue_w22: [-8.3154, -75.8377, 30.7623, 87.1132, -49.8039, 25.0000]
+  blue_w23: [-6.6782, -82.2751, 40.9256, 84.9089, -46.7190, 25.0000]
+  blue_w24: [-6.7643, -84.2152, 60.4356, 72.7851, -44.9935, 25.0000]
+  blue_w25: [-6.7643, -90.0353, 71.0526, 69.2243, -44.8889, 25.0000]
+  blue_w26: [-6.5920, -95.8554, 82.5771, 66.3417, -44.8889, 25.0000]
+  blue_w27: [-5.3856, -98.6772, 85.0272, 66.3417, -44.8889, 25.0000]
+  blue_w28: [-5.4718, -99.2064, 88.3848, 66.2569, -44.8889, 25.0000]
+  blue_w29: [-5.4718, -98.9418, 92.1960, 66.2569, -44.8889, 25.0000]
+  blue_w30: [-5.0409, -99.0300, 95.1906, 66.2569, -44.8889, 25.0000]
+  blue_w31: [-5.2133, -99.0300, 96.3702, 65.9178, -44.8889, 25.0000]
+sequences:
+  blue_plate_to_home:
+    - {pose: blue_w00, speed: 25.000}
+    - {pose: blue_w01, speed: 25.000}
+    - {pose: blue_w02, speed: 25.000}
+    - {pose: blue_w03, speed: 25.000}
+    - {pose: blue_w04, speed: 25.000}
+    - {pose: blue_w05, speed: 25.000}
+    - {pose: blue_w06, speed: 25.000}
+    - {pose: blue_w07, speed: 25.000}
+    - {pose: blue_w08, speed: 25.000}
+    - {pose: blue_w09, speed: 25.000}
+    - {pose: blue_w10, speed: 25.000}
+    - {pose: blue_w11, speed: 25.000}
+    - {pose: blue_w12, speed: 25.000}
+    - {pose: blue_w13, speed: 25.000}
+    - {pose: blue_w14, speed: 25.000}
+    - {pose: blue_w15, speed: 25.000}
+    - {pose: blue_w16, speed: 25.000}
+    - {pose: blue_w17, speed: 25.000}
+    - {pose: blue_w18, speed: 25.000}
+    - {pose: blue_w19, speed: 25.000}
+    - {pose: blue_w20, speed: 25.000}
+    - {pose: blue_w21, speed: 25.000}
+    - {pose: blue_w22, speed: 25.000}
+    - {pose: blue_w23, speed: 25.000}
+    - {pose: blue_w24, speed: 25.000}
+    - {pose: blue_w25, speed: 25.000}
+    - {pose: blue_w26, speed: 25.000}
+    - {pose: blue_w27, speed: 25.000}
+    - {pose: blue_w28, speed: 25.000}
+    - {pose: blue_w29, speed: 25.000}
+    - {pose: blue_w30, speed: 25.000}
+    - {pose: blue_w31, speed: 25.000}
+  blue_home_to_plate:
+    - {pose: blue_w31, speed: 25.000}
+    - {pose: blue_w30, speed: 25.000}
+    - {pose: blue_w29, speed: 25.000}
+    - {pose: blue_w28, speed: 25.000}
+    - {pose: blue_w27, speed: 25.000}
+    - {pose: blue_w26, speed: 25.000}
+    - {pose: blue_w25, speed: 25.000}
+    - {pose: blue_w24, speed: 25.000}
+    - {pose: blue_w23, speed: 25.000}
+    - {pose: blue_w22, speed: 25.000}
+    - {pose: blue_w21, speed: 25.000}
+    - {pose: blue_w20, speed: 25.000}
+    - {pose: blue_w19, speed: 25.000}
+    - {pose: blue_w18, speed: 25.000}
+    - {pose: blue_w17, speed: 25.000}
+    - {pose: blue_w16, speed: 25.000}
+    - {pose: blue_w15, speed: 25.000}
+    - {pose: blue_w14, speed: 25.000}
+    - {pose: blue_w13, speed: 25.000}
+    - {pose: blue_w12, speed: 25.000}
+    - {pose: blue_w11, speed: 25.000}
+    - {pose: blue_w10, speed: 25.000}
+    - {pose: blue_w09, speed: 25.000}
+    - {pose: blue_w08, speed: 25.000}
+    - {pose: blue_w07, speed: 25.000}
+    - {pose: blue_w06, speed: 25.000}
+    - {pose: blue_w05, speed: 25.000}
+    - {pose: blue_w04, speed: 25.000}
+    - {pose: blue_w03, speed: 25.000}
+    - {pose: blue_w02, speed: 25.000}
+    - {pose: blue_w01, speed: 25.000}
+    - {pose: blue_w00, speed: 25.000, dwell_s: 1.0}

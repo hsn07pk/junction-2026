@@ -1,0 +1,150 @@
+{
+ "_note": "the operator I-59 verified 2026-11-14 16:48-16:54Z: depth-guided grasp of the taped blue 2x2 at the spot -> GREEN plate. Run through app/tools/motion_server.py (mseq.py), not run_sequence (re-hold sag). Roll and wf are per-brick corrections; values below are this brick's.",
+ "poses": {
+  "spot_hover": [
+   -12.62,
+   30.0,
+   -19.33,
+   69.73,
+   -45.65,
+   25.0
+  ],
+  "spot_hover_aligned": [
+   -12.62,
+   30.0,
+   -19.33,
+   74.43,
+   -57.25,
+   25.0
+  ],
+  "spot_desc1": [
+   -12.62,
+   30.0,
+   -7.83,
+   63.23,
+   -57.25,
+   25.0
+  ],
+  "spot_desc2": [
+   -12.62,
+   30.0,
+   -1.33,
+   56.93,
+   -57.25,
+   25.0
+  ],
+  "spot_grasp_open": [
+   -12.62,
+   30.0,
+   5.47,
+   50.33,
+   -57.25,
+   25.0
+  ],
+  "spot_grasp_closed": [
+   -12.62,
+   30.0,
+   5.47,
+   50.33,
+   -57.25,
+   0.0
+  ],
+  "spot_lift_closed": [
+   -12.62,
+   30.0,
+   -3.03,
+   58.63,
+   -57.25,
+   0.0
+  ],
+  "raised_closed": [
+   -12.62,
+   -40.0,
+   80.0,
+   66.0,
+   -45.0,
+   0.0
+  ],
+  "home_closed": [
+   -6.0,
+   -98.0,
+   96.6,
+   66.0,
+   -45.0,
+   0.0
+  ]
+ },
+ "sequences": {
+  "descend_to_grasp": [
+   {
+    "pose": "spot_desc1",
+    "speed": 4
+   },
+   {
+    "pose": "spot_desc2",
+    "speed": 3
+   },
+   {
+    "pose": "spot_grasp_open",
+    "speed": 3
+   }
+  ],
+  "close": [
+   {
+    "pose": "spot_grasp_closed",
+    "speed": 15
+   }
+  ],
+  "lift_and_home": [
+   {
+    "pose": "spot_lift_closed",
+    "speed": 3
+   },
+   {
+    "pose": "raised_closed",
+    "speed": 12
+   },
+   {
+    "pose": "home_closed",
+    "speed": 12
+   }
+  ]
+ },
+ "measured": {
+  "tip_height_mm": {
+   "spot_hover": 57.7,
+   "spot_desc1": 31,
+   "spot_desc2": 19.5,
+   "spot_grasp_open": "5-7"
+  },
+  "gripper_reading": {
+   "closed_on_brick": 2.42,
+   "carry": "1.44-2.22"
+  },
+  "brick_top_mm": "19.0-19.5 (true 19.2)",
+  "J_mm_per_unit_mat_frame": {
+   "pan": [
+    -4.3,
+    -2.3,
+    0.7
+   ],
+   "sl": [
+    -0.67,
+    1.32,
+    -3.27
+   ],
+   "el": [
+    -0.93,
+    2.15,
+    -2.72
+   ],
+   "wf": [
+    -0.95,
+    2.2,
+    -0.12
+   ]
+  },
+  "roll_wristcam_yaw_deg_per_unit": 1.37,
+  "constant_pitch_descent": "dwf = -0.975*del, 1.70-1.77 mm per el unit"
+ }
+}

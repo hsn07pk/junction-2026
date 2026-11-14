@@ -1,0 +1,10 @@
+case	x_mm	y_mm	expect_reachable	note
+any_1740 ep1	287.1	-27.2	1	picked
+any_1740 ep2	257.9	171.4	1	failed under the old scan-height approach; reachable at hover height
+any_1740 ep6	261.6	174.5	1	picked
+any_1740 ep9	368.8	99.7	0	ik fail moving toward brick at r 345 mm
+any_1740 ep12	206.7	180.4	1	failed: not visible at hover
+any_1740 ep14	242.5	39.4	1	failed: e-stop during descent
+any_1740 ep15	227.0	130.7	1	picked
+any_1740 ep16	179.5	92.7	1	failed: could not centre at hover
+any_1740 ep17	184.7	104.0	1	picked

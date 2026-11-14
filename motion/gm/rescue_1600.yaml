@@ -1,0 +1,14 @@
+{
+ "placeholder": false,
+ "unit": "normalized",
+ "joint_order": ["shoulder_pan", "shoulder_lift", "elbow_flex", "wrist_flex", "wrist_roll", "gripper"],
+ "poses": {
+  "retract": [5.6, -40.0, 58.3, -27.0, -56.3, 34.8],
+  "raised": [-6.0, -40.0, 80.0, 66.0, -45.0, 25.0],
+  "home": [-6.0, -98.0, 96.6, 66.0, -45.0, 25.0]
+ },
+ "sequences": {
+  "step_a": [{"pose": "retract", "speed": 12}],
+  "step_b_home": [{"pose": "raised", "speed": 12}, {"pose": "home", "speed": 12, "dwell_s": 0.5}]
+ }
+}

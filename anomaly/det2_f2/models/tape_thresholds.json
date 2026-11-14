@@ -1,0 +1,12 @@
+{
+ "rule": "close-view tape_frac: dark (V 50-130, S<90), textured (5x5 V std > 4) pixels inside the silhouette, over silhouette area",
+ "defect": 0.0178,
+ "good": 0.0089,
+ "tex_sd": 4.0,
+ "v_band": [
+  50,
+  130
+ ],
+ "s_max": 90,
+ "calibrated_on": "the operator close labels, singles only (in-sample; LOO reported)"
+}
