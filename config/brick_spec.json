@@ -1,0 +1,11 @@
+{
+ "source": "DUPLO system dimensions: 2x2 brick footprint 31.8 mm (2 x 15.9 mm pitch), brick height 19.2 mm",
+ "footprint_mm": 31.8,
+ "height_mm": 19.2,
+ "studs": [2, 2],
+ "spot_search": {
+  "note": "candidate inspection spots: polar grid around the pan axis inside the hover reach (160-240 mm measured with kin.ik)",
+  "radius_mm": [170, 190, 210, 230],
+  "angle_deg": [-50, -35, -20, -5, 10, 25, 40]
+ }
+}

@@ -17,7 +17,7 @@ if HERE not in sys.path:
 
 import conftest as C  # noqa: E402  (also sets up sys.path for the code under test)
 
-MODULES = ["test_perception", "test_kin", "test_loopfix", "test_safety", "test_closeloc", "test_servo_corr"]
+MODULES = ["test_perception", "test_kin", "test_loopfix", "test_safety", "test_closeloc", "test_servo_corr", "test_survey"]
 
 
 def main():

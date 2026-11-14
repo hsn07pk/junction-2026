@@ -102,7 +102,7 @@ if [ "$LOOP" = 1 ]; then
   else
     rm -f run/sort_stop run/sort_pause
     echo "$RUN" > run/sort_run_name
-    (cd app/tools && nohup $PY -u -B sort_any.py --run "$RUN" --n "$N" --start "$START" --profile "$PROFILE" \
+    (cd app/tools && nohup $PY -u -B sort_any.py --run "$RUN" --n "$N" --start "$START" --profile "$PROFILE" ${COLLECT:+--collect "$COLLECT"} \
         >> "$R/logs/sort_any_$RUN.out" 2>&1 & echo $! > "$R/run/sort_any.pid")
     sleep 3
     alive run/sort_any.pid || { say "sort loop exited at start: see logs/sort_any_$RUN.out"; tail -5 "logs/sort_any_$RUN.out"; exit 10; }

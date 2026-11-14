@@ -417,6 +417,26 @@ def decide(pre, shape, views):
                                                          "CONFIDENT_GOOD view: UNCERTAIN -> GREEN (OD-10)"]
 
 
+def decide_faces(pre, shape, faces, required):
+    """OD-10 with full-surface evidence. DEFECT (green): the shape is not 2x2, a surveyed face shows a defect, or the
+    pre-grasp view is a confident defect. GOOD (blue): a measured 2x2 brick whose required faces were all surveyed
+    CLEAN. Everything else is UNCERTAIN (green). Returns (plate, label, confidence, reasons)."""
+    if shape[0] == "not_2x2":
+        return "green", "DEFECT", "confident", ["not_2x2:" + shape[1]]
+    bad = [f for f in required if faces.get(f, {}).get("verdict") == "DEFECT"]
+    if pre.get("verdict") == "CONFIDENT_DEFECT":
+        bad.append("pre_close:" + ",".join(pre.get("reasons", [])))
+    if bad:
+        return "green", "DEFECT", "confident", ["defect: " + ", ".join(bad)]
+    if shape[0] != "2x2":
+        return "green", "UNCERTAIN", "shape_unknown", ["shape not measured: UNCERTAIN -> GREEN (OD-10)"]
+    open_faces = [f for f in required if faces.get(f, {}).get("verdict") != "CLEAN"]
+    if open_faces:
+        why = {f: faces.get(f, {}).get("reason", faces.get(f, {}).get("verdict", "not surveyed")) for f in open_faces}
+        return "green", "UNCERTAIN", "incomplete", [f"not cleared: {why} -> GREEN (OD-10)"]
+    return "blue", "GOOD", "confident", ["2x2, every surveyed face clean"]
+
+
 def place(plate):
     st = ga.state()
     ga.move([st["present"][0], -40.0, 80.0, 66.0, -45.0, 0.0], speed=CFG["transit"], comp=False)
