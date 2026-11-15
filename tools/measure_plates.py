@@ -27,7 +27,7 @@ import sort_any as sa  # noqa: E402
 import sort_loop as sl  # noqa: E402
 import survey as srv  # noqa: E402
 
-HEIGHTS_MM = (150.0, 190.0, 230.0)  # TCP height above the mat for the look-down photographs, tried in this order
+HEIGHTS_MM = (150.0, 130.0, 115.0, 100.0, 85.0, 70.0, 60.0)  # look-down heights above the mat; the highest reachable is used
 
 
 def look(plate: str, out_dir: str) -> dict | None:
@@ -52,10 +52,9 @@ def look(plate: str, out_dir: str) -> dict | None:
             continue
         rec = {k: v for k, v in res.items() if k != "mask"}
         sa.log(f"plates: {plate} from {h:.0f} mm: {rec}")
-        if rec.get("reliable") and (best is None or rec.get("arc_deg", 0) > best.get("arc_deg", 0)):
+        if rec.get("reliable"):
             best = dict(rec, t=time.time(), look_h_mm=h, taught_release_xy=[round(float(p[0]), 1), round(float(p[1]), 1)])
-            if rec.get("arc_deg", 0) >= 300:
-                break
+        break  # the highest reachable view shows the most rim
     return best
 
 
@@ -72,11 +71,13 @@ def main():
     sl.wait_clear("plate measurement")
     sa.go_scan(False)
     found = {}
-    for plate in ("blue", "green"):
+    for plate in ("blue", "green"):  # the blue plate is seen from higher (nearer the base): its radius helps the green fit
         rec = look(plate, out_dir)
         sa.go_scan(False)
         if rec is not None:
             found[plate] = rec
+            if rec.get("radius") != "known" and kin.cell.get("plate_radius_mm") is None:
+                kin.cell.C["plate_radius_mm"]["value"] = rec["r_mm"]  # same plates: a short rim arc of the other one now fixes it
     print(json.dumps(found))
     if not found:
         return 2
@@ -87,8 +88,9 @@ def main():
         json.dump(old, f)
     os.replace(sa.PLATES_F + ".tmp", sa.PLATES_F)
     print("wrote", sa.PLATES_F)
-    if a.radius and len(found) == 2:
-        r = [found[k]["r_mm"] for k in found]
+    measured = [v["r_mm"] for v in found.values() if v.get("radius") != "known"]
+    if a.radius and measured:
+        r = measured if len(measured) == 2 else measured * 2
         if abs(r[0] - r[1]) <= 0.1 * max(r):
             f = os.path.join(os.path.dirname(T), "config", "cell_calibration.json")
             cfg = json.load(open(f))
