@@ -120,6 +120,9 @@ def plan_views(q_spot_hover, faces: dict, jaw_mask, search: dict) -> dict:
 MAT_SIGNIFICANCE = 6.0  # a pixel is "not mat" when it departs from the mat by 6 robust sigmas of the mat's own spread
 
 
+MAT_DARK_SHARE = 0.6  # share of the band, darkest first, that samples the mat colour (the mat is the darkest thing here)
+
+
 def lab_distance_to_mat(img: np.ndarray, brick_mask: np.ndarray, band_px: int) -> tuple[np.ndarray, dict]:
     """How far every pixel is from the mat, the mat being sampled in a band around brick_mask: colour (a*, b*) in any
     direction, lightness only upward. A shadow is the mat made darker with its own colour, so it stays mat; a brick
@@ -132,7 +135,12 @@ def lab_distance_to_mat(img: np.ndarray, brick_mask: np.ndarray, band_px: int) -
     lab = cv2.cvtColor(img, cv2.COLOR_BGR2LAB).astype(np.float32)
     if band.sum() < 50:
         return np.zeros(img.shape[:2], np.float32), {"ok": False}
-    med = np.median(lab[band], axis=0)
+    lb = lab[band]
+    if MAT_DARK_SHARE < 1.0:  # a brick lighter than the mat reaching into the band (prior off, bricks close) must not
+        # become the "mat": the mat is sampled from the darker part of the band (on a light mat set the share to 1)
+        lb = lb[lb[:, 0] <= np.percentile(lb[:, 0], 100.0 * MAT_DARK_SHARE)]
+        band = band & (lab[..., 0] <= float(lb[:, 0].max()))
+    med = np.median(lb, axis=0)
     dl = np.maximum(lab[..., 0] - med[0], 0.0)
     d = np.sqrt(dl * dl + (lab[..., 1] - med[1]) ** 2 + (lab[..., 2] - med[2]) ** 2)
     db = d[band]

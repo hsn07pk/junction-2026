@@ -297,6 +297,9 @@ def align_yaw(q, g, b, log=print):
         yaw = yaw + 90.0 if yaw < 0 else yaw - 90.0
     if abs(yaw) <= 2.5:
         return q, False
+    if abs(yaw) > 45.0:  # only a blob of two touching bricks reads like this: grasp as it is rather than lose it
+        log(f"yaw {yaw:.1f} deg not aligned (merged blob)")
+        return q, False
     nr = q[4] - yaw / ga.YAW_PER_ROLL
     if abs(nr) > 97 and b["aspect"] <= 1.4:
         alt = yaw + 90.0 if yaw < 0 else yaw - 90.0
