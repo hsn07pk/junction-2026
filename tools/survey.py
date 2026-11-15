@@ -253,6 +253,12 @@ def measure_top(img: np.ndarray, q, prior_xy, yaw0: float, sp: dict) -> dict:
     roi_r = int(round(0.9 * size_px))
     prior = poly_mask(img.shape, uv)
     roi = cv2.dilate(prior.astype(np.uint8), cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * roi_r + 1,) * 2)) > 0
+    area = roi.copy()  # the search area: a blob reaching its edge touches a neighbour
+    try:  # the jaws are never the brick nor a neighbour (they reach close to the brick in the hover view)
+        import pick_any as _pa
+        roi &= ~_pa.jaw_mask(img)
+    except Exception:  # noqa: BLE001  (no live jaw mask outside the robot runtime)
+        pass
     dist, mat = lab_distance_to_mat(img, roi, int(round(0.4 * size_px)))
     if not mat["ok"]:
         return {"ok": False, "why": "no mat around the brick"}
@@ -263,8 +269,8 @@ def measure_top(img: np.ndarray, q, prior_xy, yaw0: float, sp: dict) -> dict:
     c0 = uv.mean(axis=0)
     k = 1 + int(np.argmin([np.hypot(*(cen[i] - c0)) - 1e-3 * st[i, 4] for i in range(1, n)]))
     comp = lab == k
-    edge = cv2.dilate(roi.astype(np.uint8), np.ones((3, 3), np.uint8)) > 0
-    edge &= ~(cv2.erode(roi.astype(np.uint8), np.ones((3, 3), np.uint8)) > 0)
+    edge = cv2.dilate(area.astype(np.uint8), np.ones((3, 3), np.uint8)) > 0
+    edge &= ~(cv2.erode(area.astype(np.uint8), np.ones((3, 3), np.uint8)) > 0)
     if (comp & edge).any():  # the blob runs out of the search area: merged with a neighbour, not one brick
         return {"ok": False, "why": "brick blob reaches the edge of its search area (touching a neighbour)", "sep": sep}
     fit = fit_box(comp, q, prior_xy, yaw0, sp)
