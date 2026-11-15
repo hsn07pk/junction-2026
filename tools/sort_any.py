@@ -346,12 +346,19 @@ def approach(b, c):
     q, bh, ok = pa.servo(q, g, bh["centre"], log=log, want=want)
     if bh is None:
         return None, "servo lost brick"
+    q_pre = list(q)
     q, rot = pa.align_yaw(q, g, bh, log=log)
     if rot:
-        bh = pa.find(pa.blobs(pa.frame()), pa.target(), 260, want, short_ref=bh["short"])
-        if bh is None:
-            return None, "brick lost after yaw"
-        q, bh, ok = pa.servo(q, g, bh["centre"], log=log, want=want)
+        bh2 = pa.find(pa.blobs(pa.frame(), min_area=pa.SERVO_MIN_AREA), pa.target(), 400, want)
+        if bh2 is None:  # the roll swung the brick out of sight or under a jaw: undo it and grasp unaligned
+            log("brick not found after the yaw roll: back to the previous roll, grasping unaligned")
+            ga.cmd({"op": "move", "q": q_pre + [g], "speed": max(25.0, pa.SERVO_SPEED), "comp": True,
+                    "accel": max(120.0, ga.ACCEL)})
+            q = q_pre
+            bh2 = pa.find(pa.blobs(pa.frame(), min_area=pa.SERVO_MIN_AREA), pa.target(), 260, want)
+            if bh2 is None:
+                return None, "brick lost after yaw"
+        q, bh, ok = pa.servo(q, g, bh2["centre"], log=log, want=want)
     if not ok or bh is None:
         return None, "could not centre at hover"
     if pa.LOST_LOG:  # the tracker had to search beyond its radius: it may hold another brick now, so no pair
