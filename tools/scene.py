@@ -130,20 +130,22 @@ def _circle_fit(xy: np.ndarray) -> tuple[np.ndarray, float]:
 
 
 def plates(img: np.ndarray, q, sp: dict, z_mm: float | None = None) -> dict:
-    """The blue and the green plate in this image: not-mat regions larger than a brick by the ratio of a plate's
-    smallest plausible area (eight brick footprints) to a brick, labelled by the nearer plate hue, centre and radius
-    from a least-squares circle through the region's boundary mapped onto the mat plane (handles plates cut by the
-    image edge). Returns {colour: {"xy", "r_mm", "px", "edge_pts"}}."""
+    """The blue and the green plate in this image: not-mat regions of plate colour (hue nearer one plate colour than
+    the other, chroma well above the mat's), whose boundary, mapped onto the mat plane, is a circle (least squares;
+    the image edge is not the rim, so a plate cut by the edge is still measured) at least twice as large as the
+    largest brick (a 2x4 covers two footprints): a cluster of blue or green bricks is neither round nor that large.
+    Returns {colour: {"xy", "r_mm", "px", "hue_deg", "rms_mm"}}."""
     z = kin.MAT_Z if z_mm is None else z_mm
     nm, _ = not_mat(img)
     mat_c, mat_s = _chroma_stats(img, ~nm)
     n, lab, st, _ = cv2.connectedComponentsWithStats(nm.astype(np.uint8))
     ctr_px = np.array([img.shape[1] / 2.0, img.shape[0] / 2.0])
     unit = brick_area_px(q, wc.pixel_to_mat(q, ctr_px, kin.MAT_Z + sp["height_mm"]), sp)
+    r_min = math.sqrt(4.0 / math.pi) * sp["footprint_mm"]  # area of four footprints
     found = {}
     H, W = img.shape[:2]
     for i in range(1, n):
-        if st[i, 4] < 8 * unit:
+        if st[i, 4] < unit:  # smaller than one brick here: not a plate
             continue
         m = (lab == i).astype(np.uint8)
         reg_c, _ = _chroma_stats(img, m > 0)
@@ -161,7 +163,10 @@ def plates(img: np.ndarray, q, sp: dict, z_mm: float | None = None) -> dict:
             continue
         w = np.array([wc.pixel_to_mat(q, p, z) for p in inner[:: max(1, len(inner) // 200)]])
         c, r = _circle_fit(w)
+        rms = float(np.sqrt(np.mean((np.hypot(w[:, 0] - c[0], w[:, 1] - c[1]) - r) ** 2)))
+        if r < r_min or rms > 0.08 * r:
+            continue
         if name not in found or st[i, 4] > found[name]["px"]:
             found[name] = {"xy": [round(float(c[0]), 1), round(float(c[1]), 1)], "r_mm": round(r, 1), "px": int(st[i, 4]),
-                           "hue_deg": round(h, 1)}
+                           "hue_deg": round(h, 1), "rms_mm": round(rms, 2)}
     return found

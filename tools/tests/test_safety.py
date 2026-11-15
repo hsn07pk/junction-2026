@@ -94,18 +94,16 @@ def test_safety_motion_server_refuses_to_move_without_a_live_watchdog():
 
 
 def test_safety_grasp_descent_never_below_min_tip():
-    """F-47: whatever the size estimate says (up to the 15 mm agreement window), the two descent moves stop the jaw
-    tips at least MIN_TIP_MM above the mat by FK, on the first try and on the lower retry."""
-    for fk_tip, size_tip, retry in ((52.0, 66.9, False), (52.0, 66.9, True), (52.0, 40.0, False), (60.0, 60.0, True)):
+    """F-47: from any hover height, the two descent moves stop the jaw tips at least MIN_TIP_MM above the mat by FK,
+    on the first try and on the lower retry."""
+    for fk_tip, retry in ((52.0, False), (52.0, True), (30.0, False), (12.0, True), (60.0, True)):
         moves = []
         with _tree() as out:
             os.makedirs(os.path.join(out, "crops"))
             with mock.patch.object(sa.ga, "OUT", out, create=True), \
-                    mock.patch.object(sa.pa, "tip_from_size", return_value=size_tip), \
                     mock.patch.object(sa.kin, "fk", return_value=(np.array([0.0, 0.0, sa.kin.MAT_Z + fk_tip]), None)), \
                     mock.patch.object(sa.pa, "frame", return_value=CLEAR), \
                     mock.patch.object(sa.ga, "fresh", return_value=CLEAR), \
-                    mock.patch.object(sa, "close_pre_verdict", return_value=None), \
                     mock.patch.object(sa.pa, "move_rel", side_effect=lambda q, g, d, speed=None, **k: moves.append(d) or q), \
                     mock.patch.object(sa.pa, "blobs", return_value=[]), \
                     mock.patch.object(sa.pa, "nearest", return_value=None), \
@@ -114,10 +112,11 @@ def test_safety_grasp_descent_never_below_min_tip():
                     mock.patch.object(sa.ga, "state", return_value={"present": [0.0] * 5 + [2.0]}), \
                     mock.patch.object(sa, "EP", {}), mock.patch("time.sleep"):
                 sa.grasp([0.0] * 5, {"short": 100.0, "aspect": 1.0, "hue": 20}, retry=retry)
-        down = -sum(d[2] for d in moves if d[2] < 0)
-        end = fk_tip - down
-        assert end >= sa.MIN_TIP_MM - 1e-6, (f"fk {fk_tip} size {size_tip} retry {retry}: jaws end {end:.1f} mm above the "
-                                             f"mat (minimum {sa.MIN_TIP_MM})")
+        desc = moves[:next((i for i, d in enumerate(moves) if d[2] > 0), len(moves))]  # up to the lift after the close
+        end = fk_tip + sum(d[2] for d in desc)
+        assert len(desc) <= 2 and all(d[2] <= 0 for d in desc), f"fk {fk_tip}: the grasp descent was {moves}"
+        assert end >= sa.MIN_TIP_MM - 1e-6, (f"fk {fk_tip} retry {retry}: jaws end {end:.1f} mm above the mat "
+                                             f"(minimum {sa.MIN_TIP_MM})")
 
 
 def test_safety_go_scan_never_sweeps_after_a_failed_lift():
@@ -213,3 +212,31 @@ def test_safety_far_band_needs_the_top_camera():
     assert not handdet.far_band_only({"bbox": [100, 0, 120, 200], "edge": "T"}, 480)     # reaches onto the mat
     assert not handdet.far_band_only({"bbox": [0, 60, 120, 60], "edge": "L"}, 480)       # from the side
     assert not handdet.far_band_only({"bbox": None, "edge": "T"}, 480)
+
+
+def test_safety_hand_refit_never_misses_a_labelled_hand():
+    """fit_handdet: the refitted area rules catch every labelled hand (edge and inside), with the margin below the
+    smallest one; a frame with only a small skin-coloured speck stays clear."""
+    import csv
+    import tempfile
+    import fit_handdet as fh
+    skin = (110, 140, 200)  # BGR inside the skin box (hue 10, sat 115, Cr 160, Cb 103)
+    with tempfile.TemporaryDirectory() as d:
+        rows = []
+        for i, (box, label) in enumerate((((175, 0, 260, 60), "hand"), ((400, 0, 470, 40), "hand"),
+                                          ((300, 150, 360, 210), "hand"), ((330, 200, 340, 210), "none"))):
+            img = np.zeros((480, 640, 3), np.uint8)
+            cv2.rectangle(img, box[:2], box[2:], skin, -1)
+            cv2.imwrite(os.path.join(d, f"f{i}.png"), img)
+            rows.append({"path": f"f{i}.png", "view": "top", "label": label})
+        tsv = os.path.join(d, "labels.tsv")
+        with open(tsv, "w", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=["path", "view", "label"], delimiter="\t")
+            w.writeheader()
+            w.writerows(rows)
+        data = fh.load(tsv)
+        alone, edge = fh.fit(data, 0.8)
+        err = fh.errors(data, alone, edge)
+        assert not err["missed_hands"] and not err["false_stops"], (alone, edge, err)
+        hands_edge = min(r["f"]["area"] for r in data if r["hand"] and r["f"]["edge"])
+        assert edge["top"] == int(0.8 * hands_edge), (edge, hands_edge)

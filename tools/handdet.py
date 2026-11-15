@@ -4,8 +4,8 @@ One source of truth: the 18:03Z tight e-stop loop happened because the watchdog 
 different rules (the loop ignored the wrist view, the watchdog did not), so the loop kept clearing an e-stop the
 watchdog kept setting.
 
-Model (fitted on the 41 labelled e-stop images 16:19-18:13Z, manual visual labels in
-work/handdet/labels_features.tsv; see docs/PICK-ANYWHERE.md):
+Model (config/hand_model.json, refit with fit_handdet.py; first fitted on the 41 labelled e-stop images
+16:19-18:13Z, manual visual labels in work/handdet/labels_features.tsv):
 - skin colour: YCrCb Cr 138-170, Cb 90-125 AND HSV hue 5-20, saturation 45-150, value >= 90 (unchanged), plus a
   per-pixel value floor of 130 in the close view (warm speckles on the dark mat had median value 103-108; hands
   167-249);
@@ -19,28 +19,31 @@ A false stop is safe; a missed hand is not: the top view keeps its plain area ru
 """
 from __future__ import annotations
 
+import json
 import os
 import time
 
 import cv2
 import numpy as np
 
-# x0, y0, x1, y1. The top view must start at y0 = 0: people reach in over the far edge next to the arm, and a 30 px
-# crop missed 6 of the 17 labelled top-view hands and 25 hands in the 17:03Z recording (no extra false stop).
-ROI = {"top": (175, 0, 640, 345), "close": (0, 0, 640, 480), "wrist": (0, 0, 640, 480)}
-# per view: (area that alone means a hand, smaller area that means a hand when the blob touches the frame edge)
-AREA_ALONE = {"top": 900, "close": 6000, "wrist": 20000}
-AREA_EDGE = {"top": 900, "close": 2000, "wrist": 20000}
-PERSIST = {"top": 1, "close": 2, "wrist": 2}  # consecutive frames before an e-stop
-CLOSE_VALUE_FLOOR = 130
+MODEL_F = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config", "hand_model.json")
+M = json.load(open(MODEL_F))  # fitted parameters (fit_handdet.py), with how they were obtained
+ROI = {k: tuple(v) for k, v in M["roi"].items()}  # x0, y0, x1, y1 per view
+AREA_ALONE = dict(M["area_alone"])  # area that alone means a hand
+AREA_EDGE = dict(M["area_edge"])  # smaller area that means a hand when the blob touches the frame edge
+PERSIST = dict(M["persist"])  # consecutive frames before an e-stop
+CLOSE_VALUE_FLOOR = M["close_value_floor"]
+SKIN = M["skin"]
 
 
 def skin_mask(img: np.ndarray) -> np.ndarray:
     ycc = cv2.cvtColor(img, cv2.COLOR_BGR2YCrCb)
     hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
     h, s, v = hsv[..., 0], hsv[..., 1], hsv[..., 2]
-    m = ((ycc[..., 1] >= 138) & (ycc[..., 1] <= 170) & (ycc[..., 2] >= 90) & (ycc[..., 2] <= 125)
-         & (h >= 5) & (h <= 20) & (s >= 45) & (s <= 150) & (v >= 90)).astype(np.uint8) * 255
+    k = SKIN
+    m = ((ycc[..., 1] >= k["cr"][0]) & (ycc[..., 1] <= k["cr"][1]) & (ycc[..., 2] >= k["cb"][0]) & (ycc[..., 2] <= k["cb"][1])
+         & (h >= k["hue"][0]) & (h <= k["hue"][1]) & (s >= k["sat"][0]) & (s <= k["sat"][1]) & (v >= k["val_min"])
+         ).astype(np.uint8) * 255
     return cv2.morphologyEx(m, cv2.MORPH_OPEN, np.ones((5, 5), np.uint8))
 
 
@@ -94,7 +97,7 @@ def features(img: np.ndarray, view: str, holding: bool = False) -> dict:
             "sat": int(np.median(hsv[:, 1])), "val": int(np.median(hsv[:, 2]))}
 
 
-FAR_BAND = 0.30  # close view: top fraction of the frame that lies beyond the table's far edge
+FAR_BAND = M["far_band"]  # close view: top fraction of the frame that lies beyond the table's far edge
 
 
 def far_band_only(f: dict, height: int) -> bool:

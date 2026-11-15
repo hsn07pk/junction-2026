@@ -1,0 +1,79 @@
+{
+ "note": "Measured geometry of this robot cell, read by tools/cell.py. Each entry: value and how it was obtained. Recalibrate after moving the robot, the mat or the gripper.",
+ "mat_z_mm": {
+  "value": -38.3,
+  "how": "TCP z (base frame, FK) when the jaw tips touch the mat: grasp FK z -32.3 mm with the lowest jaw tip measured 6 mm above the mat (depth camera); FK height differences matched measured jaw-tip heights within 2 mm over 50 mm"
+ },
+ "hover_dz_mm": {
+  "value": 57.7,
+  "how": "TCP height above the mat at the hover: jaw tips about 57 mm above the mat, brick fully in the wrist view"
+ },
+ "scan_up_mm": {
+  "value": 70.0,
+  "how": "scan pose height above the hover (the scan pose sees the whole work area)"
+ },
+ "tip_final_mm": {
+  "value": 8.0,
+  "how": "jaw-tip height above the mat when closing on a brick standing on the mat (below the brick's mid-height, above the mat)"
+ },
+ "min_tip_mm": {
+  "value": 3.0,
+  "how": "lowest jaw-tip height above the mat any descent may reach by FK (keeps the jaws off the mat with the FK error measured, 2 mm)"
+ },
+ "yaw_per_roll_deg": {
+  "value": 1.37,
+  "how": "brick yaw seen in the wrist camera per wrist-roll unit, measured by rolling over a still brick"
+ },
+ "gripper_empty_closed": {
+  "value": 0.59,
+  "how": "gripper position read back after closing on nothing (runs any_1731, any_1740)"
+ },
+ "gripper_held_min": {
+  "value": 1.57,
+  "how": "smallest gripper position read back after closing on a brick in the same runs (2x2 and 2x4 read 1.57-2.42); a hold is accepted above the midpoint to the empty reading"
+ },
+ "reach_r_mm": {
+  "value": [
+   115.0,
+   360.0
+  ],
+  "how": "bricks are picked between these distances from the pan axis: closer, the arm folds over its base; further, no top-down grasp is reachable (kin.ik)"
+ },
+ "spot_hover_q": {
+  "value": [
+   -12.62,
+   30.0,
+   -19.33,
+   69.73,
+   -45.65
+  ],
+  "how": "taught top-down hover pose (normalised joints): the tool pitch and IK seed of every hover"
+ },
+ "carry_dz_mm": {
+  "value": 90.0,
+  "how": "TCP height above the mat while carrying a brick to a plate (clears bricks on the mat and the plate rims)"
+ },
+ "release_clearance_mm": {
+  "value": 15.0,
+  "how": "the held brick's bottom this high above the mat at the release over a plate (plates are a few mm thick: the brick drops about a centimetre)"
+ },
+ "rest_q": {
+  "value": [
+   -6.0,
+   -98.0,
+   96.6,
+   66.0,
+   -45.0
+  ],
+  "how": "taught folded rest pose (normalised joints): the arm rests here with torque off"
+ },
+ "up_q_tail": {
+  "value": [
+   -40.0,
+   80.0,
+   66.0,
+   -45.0
+  ],
+  "how": "joints 2-5 of the taught pose the arm first rises to before folding, base joint unchanged (never a low sweep)"
+ }
+}

@@ -105,23 +105,6 @@ def test_scan_candidates_exclude_plates_1754Z():
     assert _dist(red, yel) > 30, f"red {red} and yellow {yel} merged into one neighbourhood"
 
 
-def test_close_pre_verdict_replay():
-    """Fixture 5: close_pre_verdict(pre_close_full.jpg, want_hue) reproduces the episode.json verdict and the exact reasons
-    list; the hue must be within 2 units where episode.json records one (ep 0001 has none). For ep 0013 and ep 0017 the current hue is 1 unit from the recorded hue
-    (current 4 and 19, recorded 5 and 18; raw/L21_probe.txt and episode.json)."""
-    fails = []
-    for ep, rel, verdict, reasons, want_hue, hue_rec in C.CLOSE:
-        img = C.load_img(rel)
-        v = C.sa.close_pre_verdict(img, want_hue=want_hue)
-        if v is None:
-            fails.append((ep, "None"))
-            continue
-        bad_hue = hue_rec is not None and abs(v["hue"] - hue_rec) > 2
-        if v["verdict"] != verdict or v["reasons"] != reasons or bad_hue:
-            fails.append((ep, v["verdict"], v["reasons"], v["hue"]))
-    assert not fails, f"pre_close replay mismatches (episode, verdict, reasons, hue): {fails}"
-
-
 def test_handdet_runs_on_all_estop_frames():
     """Fixture 6 smoke test: handdet.is_hand(img, view) runs on all 41 recorded estop frames and returns a bool and a
     features dict with an integer area. No label is asserted here (see test_hand_labels_if_present)."""

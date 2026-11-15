@@ -21,15 +21,20 @@ fi
 if alive run/mserver/pid; then
   (cd app/tools && $R/envs/data-env/bin/python -B -c "
 import grasp_auto as ga
-st = ga.state()
-q = st['present']
-ga.move([q[0], -40.0, 80.0, 66.0, -45.0, 25.0], speed=15, comp=False)   # up first: never sweep low
-ga.move([-6.0, -98.0, 96.6, 66.0, -45.0, 25.0], speed=15, comp=False)   # folded rest pose
+import rest
+rest.fold()
 ga.cmd({'op': 'release'})                                               # torque off, port closed
 print('arm at rest, torque off')
 ") && say "arm folded to rest, torque off" || say "could not move the arm to rest (e-stop or watchdog?): motion server left as is"
 fi
+stray_ffmpeg() { pgrep -f "ffmpeg .*-i /dev/video(8|14|16)( |$)"; }
 for p in hand_watch monitor_cams wrist_recorder; do
-  f=run/$p.pid; alive "$f" && { kill -TERM "$(cat "$f")"; say "$p stopped"; }
+  f=run/$p.pid
+  if alive "$f"; then
+    pkill -TERM -P "$(cat "$f")" 2>/dev/null  # the recorders' ffmpeg children first, so no camera stays open
+    kill -TERM "$(cat "$f")"; say "$p stopped"
+  fi
 done
+sleep 1
+for p in $(stray_ffmpeg); do kill -TERM "$p" 2>/dev/null && say "stray recorder ffmpeg $p stopped"; done
 say "cell stopped"

@@ -438,6 +438,10 @@ def observe(views: list, faces3d: dict, cfg: dict, search_px: int, jaw=None, sp:
     tm, w = cfg["texel_mm"], max(2, int(round(cfg["min_defect_mm"] / cfg["texel_mm"])))
     regs, samples = {}, []
     for v in views:
+        if v["img"].shape[:2] != (sv.IMG_H, sv.IMG_W):  # the camera model holds for the frame size it was fitted at
+            regs[v["name"]] = {"ok": False, "why": f"frame {v['img'].shape[1]}x{v['img'].shape[0]}, camera model "
+                                                   f"{sv.IMG_W}x{sv.IMG_H}"}
+            continue
         reg = register_view(v["img"], v["q"], faces3d, search_px, jaw)
         regs[v["name"]] = {k: reg.get(k) for k in ("ok", "why", "T", "iou", "refined", "chamfer_px", "edge_inliers",
                                                    "resid_px", "at_limit", "noise", "margin_L", "margin_C",

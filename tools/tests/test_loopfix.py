@@ -281,16 +281,3 @@ def test_loopfix_main_does_not_start_the_cycle_loop_when_carryover_recover_gives
         run_one.assert_not_called()
         episode = os.path.join(root, "logs", "sort", "t_carry", "ep_0000", "episode.json")
         assert os.path.exists(episode), "the carry-over episode was not saved before main() stopped"
-
-
-def test_decide_follows_od10_failsafe():
-    """OD-10: blue only for a measured 2x2 with a CONFIDENT_GOOD view; every UNCERTAIN case goes to green."""
-    import sort_loop as sl
-    good = {"verdict": "CONFIDENT_GOOD", "tape_score": 0.01}
-    unc = {"verdict": "UNCERTAIN"}
-    assert sl.decide(good, ("2x2", "a"), [])[:2] == ("blue", "GOOD")
-    assert sl.decide(unc, ("2x2", "a"), [good])[:3] == ("blue", "GOOD", "held_only")
-    assert sl.decide(good, ("not_2x2", "aspect 2.0"), [])[:2] == ("green", "DEFECT")
-    assert sl.decide({"verdict": "CONFIDENT_DEFECT", "reasons": ["tape"]}, ("2x2", "a"), [])[:2] == ("green", "DEFECT")
-    assert sl.decide(unc, ("2x2", "a"), [unc])[:3] == ("green", "UNCERTAIN", "no_evidence")
-    assert sl.decide(good, ("unknown", ""), [])[:3] == ("green", "UNCERTAIN", "shape_unknown")

@@ -85,3 +85,24 @@ def test_survey_sim_neighbour_close_means_survey_at_the_spot():
 def test_survey_sim_2x4_is_not_2x2():
     out, _ = _run([sim.brick(XY, 0.3, ORANGE, size=(31.8, 63.6))])
     assert out["shape"][0] == "not_2x2", out.get("measure")
+
+
+def test_scene_plates_found_and_brick_clusters_not_taken_for_plates():
+    """Both plates are found from the scan frame (centre and radius on the mat), a square of four touching blue bricks
+    next to them is not taken for a plate, and the drop points stay on the plate."""
+    import scene
+    q_scan = sa.scan_cal()["q_scan"]
+    truth = {"blue": ((187.1, -86.1), 75.0, (200, 90, 20)), "green": ((194.6, 218.3), 75.0, (60, 150, 40))}
+    cluster = [sim.brick((262.0 + 31.8 * i, 40.0 + 31.8 * j), 0.0, (200, 90, 20)) for i in range(2) for j in range(2)]
+    img = sim.render(q_scan, cluster, list(truth.values()), seed=5)
+    found = scene.plates(img, q_scan, sv.spec())
+    assert set(found) == set(truth), found
+    for k, (xy, r, _) in truth.items():
+        assert math.hypot(found[k]["xy"][0] - xy[0], found[k]["xy"][1] - xy[1]) < 3.0 and abs(found[k]["r_mm"] - r) < 3.0, found
+    with tempfile.TemporaryDirectory() as d, mock.patch.object(sa, "PLATES_F", os.path.join(d, "plates.json")):
+        sa.see_plates(img, q_scan)
+        for k, (xy, r, _) in truth.items():
+            pts = sa.drop_points(k)
+            assert pts and all(math.hypot(p[0] - xy[0], p[1] - xy[1]) <= r - 0.75 * 31.8 + 1e-6 for p in pts), pts
+        assert sa.near_plate((187.0, -30.0), sa.plates_seen()["plates"], sv.spec())
+        assert not sa.near_plate((262.0, 40.0), sa.plates_seen()["plates"], sv.spec())

@@ -1,0 +1,64 @@
+{
+ "note": "Hand detector parameters (tools/handdet.py), shared by the hand watchdog and the loop's clear check. Fitted on labelled e-stop frames; refit with fit_handdet.py (keeps every labelled hand detected).",
+ "provenance": "41 labelled e-stop images 16:19-18:13Z (manual visual labels, work/handdet/labels_features.tsv): skin colour box unchanged from the first detector, close-view value floor 130 (warm speckles on the dark mat had median value 103-108, hands 167-249), area rules from the labelled blobs",
+ "skin": {
+  "cr": [
+   138,
+   170
+  ],
+  "cb": [
+   90,
+   125
+  ],
+  "hue": [
+   5,
+   20
+  ],
+  "sat": [
+   45,
+   150
+  ],
+  "val_min": 90
+ },
+ "roi": {
+  "top": [
+   175,
+   0,
+   640,
+   345
+  ],
+  "close": [
+   0,
+   0,
+   640,
+   480
+  ],
+  "wrist": [
+   0,
+   0,
+   640,
+   480
+  ]
+ },
+ "roi_note": "x0, y0, x1, y1; the top view starts at y0 = 0: people reach in over the far edge (a 30 px crop missed 6 of 17 labelled top-view hands)",
+ "area_alone": {
+  "top": 900,
+  "close": 6000,
+  "wrist": 20000
+ },
+ "area_edge": {
+  "top": 900,
+  "close": 2000,
+  "wrist": 20000
+ },
+ "area_note": "a blob is a hand when its area reaches area_alone, or area_edge when it touches the frame edge (people reach in from outside the frame)",
+ "persist": {
+  "top": 1,
+  "close": 2,
+  "wrist": 2
+ },
+ "persist_note": "consecutive frames before an e-stop",
+ "close_value_floor": 130,
+ "far_band": 0.3,
+ "far_band_note": "close view: the top fraction of the frame beyond the table's far edge; a blob only there needs the top camera to confirm"
+}

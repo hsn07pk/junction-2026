@@ -20,10 +20,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 FIX = os.path.join(HERE, "fixtures")
 # The tree under test: the tools folder that holds this tests folder (a copy under work/ tests the copy, not R/app).
 APP_TOOLS = os.path.dirname(HERE)
-DET2 = os.path.join(os.path.dirname(APP_TOOLS), "anomaly", "det2_f2")
-for _p in (APP_TOOLS, DET2):
-    if _p not in sys.path:
-        sys.path.insert(0, _p)
+if APP_TOOLS not in sys.path:
+    sys.path.insert(0, APP_TOOLS)
 
 
 def _load(name, path):
@@ -38,9 +36,8 @@ def _load(name, path):
     return mod
 
 
-for _name in ("rs_height", "kin", "handdet", "hand_watch", "grasp_auto", "pick_any", "sort_loop", "sort_any"):
+for _name in ("paths", "cell", "kin", "handdet", "hand_watch", "grasp_auto", "pick_any", "sort_loop", "sort_any"):
     _load(_name, os.path.join(APP_TOOLS, _name + ".py"))
-_load("inspector", os.path.join(DET2, "inspector.py"))
 
 import pick_any as pa  # noqa: E402
 import sort_any as sa  # noqa: E402
@@ -55,6 +52,7 @@ for _m in (pa, sa, sl, kin, hd, sys.modules["hand_watch"]):
 RUN_DIR = tempfile.mkdtemp(prefix="p2b_tests_run_")  # sort_any.log writes RUN/loop.log; keep it out of the repo
 sa.RUN = RUN_DIR
 sl.RUN = RUN_DIR
+sa.PLATES_F = os.path.join(RUN_DIR, "plates_seen.json")  # scans in tests must not touch the cell's plate record
 
 
 class Skip(Exception):
@@ -94,20 +92,6 @@ SERVO = [
 
 # Fixture 4: split white brick, ep 16 window 18:16:10Z-18:16:30Z, one frame every 2 s
 SPLIT = ["split/split_1816%02d.png" % s for s in range(10, 31, 2)]
-
-# Fixture 5: close pre-verdicts. (episode, file, recorded verdict, recorded reasons, want_hue, recorded hue)
-# want_hue = hover_blob hue when episode.json stores it; for ep 0008 and 0014 (no hover_blob) it is
-# pre_close.hue + pre_close.hue_diff, which reproduces the recorded hue_diff exactly.
-CLOSE = [
-    ("0001", "close/ep0001_pre_close_full.jpg", "CONFIDENT_GOOD", ["tape_frac_low"], 14, None),
-    ("0006", "close/ep0006_pre_close_full.jpg", "CONFIDENT_DEFECT", ["tape_frac_high", "merged_blob_white_plus_colour"], 18, 28),
-    ("0008", "close/ep0008_pre_close_full.jpg", "UNCERTAIN", ["tape_frac_low", "close_brick_hue_mismatch_11"], 13, 2),
-    ("0013", "close/ep0013_pre_close_full.jpg", "UNCERTAIN", ["merged_blob_two_hues"], 177, 5),
-    ("0014", "close/ep0014_pre_close_full.jpg", "UNCERTAIN", ["tape_frac_low", "close_brick_hue_mismatch_82"], 82, 0),
-    ("0015", "close/ep0015_pre_close_full.jpg", "CONFIDENT_GOOD", ["tape_frac_low"], 176, 178),
-    ("0017", "close/ep0017_pre_close_full.jpg", "CONFIDENT_DEFECT", ["tape_frac_high", "merged_blob_two_hues"], 17, 18),
-]
-
 
 def _has_images(root):
     for _, _, names in os.walk(root):

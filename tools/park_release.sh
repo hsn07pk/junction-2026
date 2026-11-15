@@ -34,6 +34,7 @@ import os
 import time
 import grasp_auto as ga
 import handdet
+import rest
 t0 = time.time()
 while not handdet.heartbeat_fresh() or time.time() - os.path.getmtime(os.path.join(ga.RUN_ROOT, 'live_top.jpg')) > 1.0:
     if time.time() - t0 > 30:
@@ -45,9 +46,7 @@ for attempt in range(120):
         e = os.path.join(ga.RUN_ROOT, 'estop')
         if os.path.exists(e) and time.time() - os.path.getmtime(e) > 3.0:
             os.remove(e)
-        q = ga.state()['present']
-        ga.move([q[0], -40.0, 80.0, 66.0, -45.0, 25.0], speed=15, comp=False)   # up first: never sweep low
-        ga.move([-6.0, -98.0, 96.6, 66.0, -45.0, 25.0], speed=15, comp=False)   # folded rest pose
+        rest.fold()
         done = True
         break
     except ga.Stop as ex:

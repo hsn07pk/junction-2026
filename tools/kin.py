@@ -22,9 +22,9 @@ URDF = (f"{R}/repos/edge-developer-kit-reference-scripts/samples/ai/edge-ai-demo
 CH = Chain(URDF)
 CAL = FollowerCalibration.from_studio_json(f"{APP}/motion/project_robots.json", "SO101_Follower")
 LO, HI = CAL.rad_bounds(CH, margin_units=3)
-MAT_Z = -38.3          # TCP z (mm) when the TCP touches the mat
-HOVER_DZ = 57.7        # TCP height above the mat at the hover (jaw tips ~57 mm)
-GRASP_DZ = 6.0
+import cell  # noqa: E402
+MAT_Z = cell.get("mat_z_mm")  # TCP z (mm) when the TCP touches the mat
+HOVER_DZ = cell.get("hover_dz_mm")  # TCP height above the mat at the hover
 CALF = f"{APP}/tools/wrist_calib.json"
 
 

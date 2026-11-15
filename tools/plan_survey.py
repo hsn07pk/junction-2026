@@ -57,12 +57,15 @@ def main():
     jaw = (jm > 0) if jm is not None else None
     q_ref = list(sa.SPOT_HOVER)
     psi_ref = kin.psi_of(q_ref)
+    plates = sa.plates_seen()["plates"]
+    if not plates:
+        sys.exit("no plate positions yet: start the sort loop once (its scans record where the plates are), then rerun")
     spots, keys = [], set()
     for r in spec["spot_search"]["radius_mm"]:
         for ang in spec["spot_search"]["angle_deg"]:
             x = kin.PAN_XY_MM[0] + r * math.cos(math.radians(ang))
             y = kin.PAN_XY_MM[1] + r * math.sin(math.radians(ang))
-            if min(math.hypot(x - px, y - py) for px, py in sa.PLATES_XY.values()) < sa.PLATE_KEEPOUT + spec["footprint_mm"]:
+            if sa.near_plate((x, y), plates, spec):  # a spot on or against a plate is not a spot
                 continue
             q_h = spot_pose(x, y, q_ref, psi_ref)
             if q_h is None:

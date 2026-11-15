@@ -28,7 +28,7 @@ import wristcam as wc  # noqa: E402
 SPEC_F = os.path.join(APP, "config", "brick_spec.json")
 PLAN_F = os.path.join(APP, "config", "survey_plan.json")
 FACES = ("top", "side0", "side1", "side2", "side3")
-IMG_W, IMG_H = 640, 480
+IMG_W, IMG_H = (int(v) for v in wc.M["image_size"])  # the frame size the camera model was fitted at
 
 
 def spec() -> dict:

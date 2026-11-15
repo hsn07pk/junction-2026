@@ -20,10 +20,9 @@ import grasp_auto as ga  # noqa: E402
 import kin  # noqa: E402
 
 R = ga.R
-HOVER_DZ = 57.7
-TIP_FINAL = 8.0
-SIZE_K, SIZE_C = 9886.0, 33.0          # tip height above the mat (mm) = SIZE_K / short_side_px - SIZE_C (hover tilt)
-SCAN_UP = 70.0
+HOVER_DZ = kin.HOVER_DZ
+TIP_FINAL = kin.cell.get("tip_final_mm")
+SCAN_UP = kin.cell.get("scan_up_mm")
 SERVO_SPEED = 12.0
 SCALF = os.path.join(ga.APP, "tools", "scan_calib.json")
 PLATE_HUES = ((85, 112), (38, 85))     # blue, green plates (OpenCV hue)
@@ -268,10 +267,6 @@ def align_yaw(q, g, b, log=print):
         raise ga.Stop(f"yaw -> {st['status']}")
     log(f"yaw {yaw:.1f} deg -> roll {qn[4]}")
     return qn, True
-
-
-def tip_from_size(short_px):
-    return SIZE_K / max(short_px, 1.0) - SIZE_C
 
 
 def load_scan():
