@@ -30,6 +30,8 @@
  "calibration_margin_note": "the fitted misfits are this many times the largest a clean calibration survey needed: room for a clean brick that was not in the calibration set (calibrate_defects.py checks it by holding out each physical brick)",
  "quantisation_floor_levels": 1.0,
  "quantisation_floor_levels_note": "an 8-bit, JPEG-coded frame leaves the mean colour and brightness of a flat face about a level off; the fitted misfits are never taken below this (then times calibration_margin)",
- "min_edge_inliers": 0.6,
- "min_edge_inliers_note": "and when at least this fraction of the model's edge points lie within 2 px of an image edge after registration (an edge between two faces lit alike may show no edge, so not all of them do)"
+ "min_edge_inliers": 0.5,
+ "min_edge_inliers_note": "and when at least this fraction of the model's edge points lie within 2 px of an image edge after registration (an edge between two faces lit alike may show no edge, so not all of them do)",
+ "align_search_factor": 10.0,
+ "align_search_factor_note": "registration search radius in multiples of the camera model's median reprojection error; 10 covers the p90 error of the re-fitted wrist camera with the loose jaw mount (about 11 px at a 4.3 px median) plus its wobble between fits"
 }

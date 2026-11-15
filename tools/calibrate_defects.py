@@ -134,7 +134,7 @@ def main():
     if bad:
         sys.exit(f"labels: truth must be GOOD or DEFECT, got {bad}")
     sp, cfg = sv.spec(), dfx.config()
-    search_px = int(round(6 * float(sv.wc.M["reproj_median_px"])))
+    search_px = int(round(float(cfg.get("align_search_factor", 6.0)) * float(sv.wc.M["reproj_median_px"])))
     jm = cv2.imread(os.path.join(APP, "tools", "wrist_jaw_mask.png"), 0)
     jaw = (jm > 0) if jm is not None else None
     surveys, skipped = [], []

@@ -405,7 +405,7 @@ def grasp(q, bh, retry=False, tag=""):
 
 
 
-ALIGN_SEARCH_PX = int(round(6 * float(srv.wc.M["reproj_median_px"])))  # 6 x the camera model's median reprojection error
+ALIGN_SEARCH_PX = int(round(float(dfx.config().get("align_search_factor", 6.0)) * float(srv.wc.M["reproj_median_px"])))  # 6 x the camera model's median reprojection error
 SCAN_RESID_MM = None  # median residual (mm) of the current scan map, set by fit_scan_corr: brick position uncertainty
 
 
