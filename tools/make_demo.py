@@ -468,7 +468,7 @@ def caption_bar(head, accent, tail):
 
 
 def build_base(p, idx, total):
-    head = [("EP %d (%d of %d)   " % (p["num"], idx, total), WHITE), (p["dec_text"], p["dec_col"]),
+    head = [("BRICK %d of %d   " % (idx, total), WHITE), (p["dec_text"], p["dec_col"]),
             ("   CYCLE %.1f s" % p["cyc"], WHITE)]
     if p["conf"]:
         head.append(("   CONF " + p["conf"], WHITE))
@@ -536,14 +536,14 @@ def title_card(run_name, n, first, last):
         ("SO-101 DUPLO QUALITY SORTER", 2.2, WHITE, 400, 4),
         ("2x2 brick without a defect: BLUE plate.   Any defect, other shape or unsure: GREEN plate.", 1.0, GREY, 490, 2),
         ("Each brick is measured and every face inspected from several wrist-camera angles", 0.9, GREY, 550, 2),
-        ("Run %s: %d bricks, recorded %s to %s" % (run_name, n, utc(first), utc(last)), 0.8, GREY, 640, 2),
+        ("Highlights from run %s, %d sorting cycles, %s" % (run_name, n, utc(first)[:10]), 0.8, GREY, 640, 2),
     ])
 
 
 def end_card(t):
     med = "%.1f s" % t["median"] if t["median"] is not None else "n/a"
     lines = [
-        ("RUN TOTALS", 2.2, WHITE, 330, 4),
+        ("IN THIS VIDEO", 2.2, WHITE, 330, 4),
         ("Bricks: %d" % t["bricks"], 1.5, WHITE, 430, 3),
         ("BLUE (GOOD): %d" % t["good"], 1.5, BLUE, 510, 3),
         ("GREEN (DEFECT or UNCERTAIN): %d   (defect %d, uncertain %d)"
