@@ -25,7 +25,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import grasp_auto as ga  # noqa: E402
 import kin  # noqa: E402
 import pick_any as pa  # noqa: E402
-import sort_loop as sl  # noqa: E402  (close_verdict, decide, skin/hands helpers, run_fast)
+import sort_loop as sl  # noqa: E402  (workspace-clear rule, log, crops, decide_faces)
 import defects as dfx  # noqa: E402
 import survey as srv  # noqa: E402
 import scene  # noqa: E402

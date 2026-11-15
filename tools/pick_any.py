@@ -89,6 +89,17 @@ def blobs(img, min_area=2500, max_area=60000):
     return out
 
 
+def brick_at_target(img, min_area=2500):
+    """The brick blob nearest the servo target in a wrist frame, with its distance to the target (px): what the
+    calibration tools follow while they move the arm."""
+    if img is None:
+        return None
+    b = nearest(blobs(img, min_area=min_area), target())
+    if b is None:
+        return None
+    return dict(b, dist_to_target=round(math.hypot(b["centre"][0] - target()[0], b["centre"][1] - target()[1]), 1))
+
+
 def nearest(bl, px, max_d=1e9, ok=lambda b: True):
     c = [b for b in bl if ok(b)]
     if not c:
