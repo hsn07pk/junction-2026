@@ -216,7 +216,7 @@ def see_plates(img, q_scan):
     {colour: {"xy", "r_mm", ...}}, the plate pixels of this frame)."""
     rec = plates_seen()
     try:
-        now = scene.plates(img, q_scan, srv.spec(), ignore=ga.JAW_MASK)
+        now = scene.plates(img, q_scan, srv.spec(), ignore=pa.jaw_mask(img))
     except Exception as e:  # noqa: BLE001
         log(f"plate detection failed: {e!r}")
         now = {}
@@ -472,7 +472,7 @@ def survey_views(q_hover, meas, sp, model, sdir, tag):
     if rest:
         views += run_views(rest, sdir, tag, q_hover, q_hover)
     with ThreadPoolExecutor(1) as ex:  # the inspection runs while the arm goes back to the hover
-        job = ex.submit(dfx.inspect, views, faces3d, model, None, ALIGN_SEARCH_PX, ga.JAW_MASK)
+        job = ex.submit(dfx.inspect, views, faces3d, model, None, ALIGN_SEARCH_PX, pa.jaw_mask_views([v["img"] for v in views]))
         if rest:
             ga.move(list(q_hover) + [25.0], speed=CFG["transit"], comp=True)
         res, summ = job.result()
@@ -527,7 +527,7 @@ def survey_here(k, q_hover, bh, b, cand):
     radius = sp["footprint_mm"] / 2 + sp["height_mm"] / math.tan(max(lowest_view_elevation(plan["views"], meas["xy"], sp),
                                                                      1e-3)) + 2 * sig
     scan = (EPIMG.get("pre") or {}).get("wrist")
-    iso = scene.isolated(scan, scan_cal()["q_scan"], meas["xy"], meas["yaw"], sp, radius, 2 * sig, ga.JAW_MASK) \
+    iso = scene.isolated(scan, scan_cal()["q_scan"], meas["xy"], meas["yaw"], sp, radius, 2 * sig, pa.jaw_mask(scan)) \
         if scan is not None else \
         {"isolated": False, "why": "no scan image"}
     out["isolation"] = iso
@@ -551,8 +551,12 @@ def free_spot(sp):
         return None, "no plan or no scan image"
     q_scan = scan_cal()["q_scan"]
     spots = [plan["spot_xy"]] + [s[1:] for s in plan.get("ranked_spots", []) if s[1:] != plan["spot_xy"]]
+    plates = plates_seen().get("plates", {})
     for xy in spots:
-        fr = scene.spot_free(scan, q_scan, xy, sp, 2 * pos_sigma_mm(sp), ga.JAW_MASK)
+        if any(math.hypot(xy[0] - v["xy"][0], xy[1] - v["xy"][1]) < v["r_mm"] + 2.0 * sp["footprint_mm"]
+               for v in plates.values()):
+            continue  # the survey views around a brick this close to a plate would see the plate as a neighbour
+        fr = scene.spot_free(scan, q_scan, xy, sp, 2 * pos_sigma_mm(sp), pa.jaw_mask(scan))
         if fr.get("free"):
             q_h = kin.ik(xy[0], xy[1], kin.MAT_Z + pa.HOVER_DZ, kin.psi_of(plan["q_hover"]), plan["q_hover"])
             if q_h is not None:

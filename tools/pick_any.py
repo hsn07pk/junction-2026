@@ -42,12 +42,43 @@ COLOUR_CLASSES = {  # hue classes so touching bricks of different colours become
 }
 
 
+JAW_LIVE_MIN_PX = 1500   # a jaw-red region entering from the bottom edge larger than this is a jaw
+JAW_LIVE_GROW_PX = 15    # and is widened by this much (its shaded edge is less red)
+
+
+def jaw_mask(img, hsv=None):
+    """The jaws as they are in this wrist frame: the static mask from the last jaw check joined with the jaw-red
+    regions that enter from the bottom edge of the view (a loose jaw moves out of the static mask)."""
+    static = ga.JAW_MASK if ga.JAW_MASK is not None and ga.JAW_MASK.shape == img.shape[:2] else \
+        np.zeros(img.shape[:2], bool)
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV) if hsv is None else hsv
+    H, S, V = hsv[..., 0], hsv[..., 1], hsv[..., 2]
+    red = ((((H >= 165) | (H <= 4)) & (S >= 85) & (V >= 55)) | static).astype(np.uint8)
+    n, lab, st, _ = cv2.connectedComponentsWithStats(red)
+    h = img.shape[0]
+    keep = [i for i in range(1, n) if st[i, 4] > JAW_LIVE_MIN_PX and st[i, 1] + st[i, 3] >= h - 3]
+    live = np.isin(lab, keep) if keep else np.zeros(red.shape, bool)
+    live = cv2.dilate(live.astype(np.uint8), np.ones((JAW_LIVE_GROW_PX, JAW_LIVE_GROW_PX), np.uint8)) > 0
+    return live | static
+
+
+def jaw_mask_views(imgs):
+    """One jaw mask for a set of wrist frames of the same survey: the jaws as they were in any of them."""
+    m = None
+    for im in imgs:
+        if im is None:
+            continue
+        j = jaw_mask(im)
+        m = j if m is None else (m | j if m.shape == j.shape else m)
+    return m if m is not None else ga.JAW_MASK
+
+
 def blobs(img, min_area=2500, max_area=60000):
-    """Brick-like blobs in a wrist frame (jaws masked), one connected component per colour class, with
-    plate-surround flag."""
+    """Brick-like blobs in a wrist frame (jaws masked as they are in this frame), one connected component per colour
+    class, with plate-surround flag."""
     hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
     H, S, V = hsv[..., 0], hsv[..., 1], hsv[..., 2]
-    jaw = ga.JAW_MASK if ga.JAW_MASK is not None else np.zeros(H.shape, bool)
+    jaw = jaw_mask(img, hsv)
     plate = np.zeros(H.shape, bool)
     for lo, hi in PLATE_HUES:
         plate |= (H >= lo) & (H < hi) & (S >= 70) & (V >= 70)
