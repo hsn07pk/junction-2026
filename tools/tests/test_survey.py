@@ -1,4 +1,4 @@
-"""Inspection v2: brick geometry, the colour-agnostic face test on synthetic faces, and the full-surface decision."""
+"""Inspection: brick geometry, the parts of the surface defect test on synthetic data, and the full-surface decision."""
 import math
 import os
 import sys
@@ -7,14 +7,10 @@ import cv2
 import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-import faces as fc  # noqa: E402
+import defects as dfx  # noqa: E402
 import kin  # noqa: E402
 import sort_loop as sl  # noqa: E402
 import survey as sv  # noqa: E402
-
-MODEL = {"k_chroma": 6.0, "k_light": 6.0, "noise_chroma": 1.0, "noise_light": 1.5, "erode_frac": 0.08,
-         "max_region_mm2": 6.0, "min_valid_frac": 0.5}  # test parameters only; the loop uses the fitted model file
-
 
 def test_survey_brick_faces_geometry():
     f = sv.brick_faces((200.0, 50.0), math.radians(30), (31.8, 31.8), 19.2, kin.MAT_Z)
@@ -27,31 +23,47 @@ def test_survey_brick_faces_geometry():
         assert np.dot(ctr[:2] - np.array([200.0, 50.0]), n[:2]) > 15.0  # outward, half the footprint away
 
 
-def _face_image(colour, tape=None):
-    rng = np.random.default_rng(1)
-    img = rng.normal(25, 4, (240, 320, 3)).clip(0, 255).astype(np.uint8)
-    poly = np.array([[80, 60], [240, 60], [240, 180], [80, 180]], float)
-    cv2.fillConvexPoly(img, poly.astype(np.int32), colour)
-    if tape is not None:
-        cv2.rectangle(img, (130, 100), (190, 116), tape, -1)
-    img = np.clip(img + rng.normal(0, 3, img.shape), 0, 255).astype(np.uint8)
-    return img, poly
+def test_defects_no_model_means_uncertain():
+    assert dfx.load_model("/nonexistent/defect_model.json") is None
+    res = dfx.judge({"ok": False, "why": "x"}, None, dfx.config())
+    assert all(r["verdict"] == "UNCERTAIN" for r in res.values())
 
 
-def test_survey_face_test_is_colour_agnostic():
-    """Clean faces of several plastic colours pass; tape of a different colour, and a same-hue lighter patch, fail."""
-    for colour in ((200, 120, 30), (40, 200, 230), (60, 60, 200), (235, 235, 235), (40, 160, 60)):
-        img, poly = _face_image(colour)
-        assert fc.score(img, poly, 31.8 * 31.8, MODEL)["verdict"] == "CLEAN", colour
-        for tape in ((170, 170, 170), (20, 20, 20), (30, 30, 220)):
-            if np.abs(np.array(tape) - np.array(colour)).max() < 40:
-                continue
-            img2, _ = _face_image(colour, tape)
-            assert fc.score(img2, poly, 31.8 * 31.8, MODEL)["verdict"] == "DEFECT", (colour, tape)
+def test_defects_lag_sigma_measures_noise_not_the_patch():
+    """A patch larger than a window leaves the lag differences to the noise."""
+    rng = np.random.default_rng(3)
+    m = rng.normal(0, 0.01, (40, 60))
+    m[10:30, 20:45] += 0.5  # a defect-sized step
+    s = dfx._lag_sigma(m, np.ones(m.shape, bool), 8)
+    assert 0.008 < s < 0.03, s
 
 
-def test_survey_no_model_means_uncertain():
-    assert fc.load_model("/nonexistent/face_model.json") is None
+def test_defects_clipped_halo_grows_with_the_highlight():
+    img = np.full((120, 160, 3), 100, np.uint8)
+    cv2.circle(img, (80, 60), 6, (255, 255, 255), -1)
+    h = dfx.clipped_halo(img)
+    assert h[60, 80] and h[60, 80 + 15] and not h[60, 80 + 25]
+
+
+def test_defects_body_line_ignores_a_taped_minority():
+    rng = np.random.default_rng(4)
+    ell = rng.uniform(4.5, 6.0, 3000)
+    rg = np.stack([0.5 - 0.03 * (ell - 5.2), 0.3 + 0.01 * (ell - 5.2)], 1) + rng.normal(0, 0.002, (3000, 2))
+    rg[:900] = [0.33, 0.33]  # 30 % tape
+    b = dfx._body_line(ell, rg, 0.05)
+    assert abs(b["b"][0] + 0.03) < 0.005 and abs(b["a"][0] - (0.5 - 0.03 * (b["l0"] - 5.2))) < 0.003, b
+
+
+def test_defects_trim_edges_drops_a_contaminated_band_only():
+    ok = np.ones((40, 60), bool)
+    vv, uu = np.mgrid[0:40, 0:60]
+    edge_d = np.minimum.reduce([uu, vv, 59 - uu, 39 - vv]).astype(float)
+    edge_id = np.argmin(np.stack([vv, 59 - uu, 39 - vv, uu], -1), -1)
+    r = np.random.default_rng(5).normal(0, 0.01, (40, 60, 1))
+    r[vv < 3] += 0.3  # mixing along one edge (edge 0: v = 0)
+    out = dfx.trim_edges(ok, edge_d, edge_id, r, 0.0, 6.0)
+    along = (uu >= 3) & (uu <= 56)  # the corners belong to the other edges
+    assert not out[(vv < 3) & along].any() and out[(vv >= 4) & (vv < 36) & (uu > 6) & (uu < 53)].all()
 
 
 def test_survey_decide_faces_rule():
@@ -65,3 +77,23 @@ def test_survey_decide_faces_rule():
     assert sl.decide_faces({}, ("not_2x2", "aspect 2"), clean, req)[:2] == ("green", "DEFECT")
     assert sl.decide_faces({"verdict": "CONFIDENT_DEFECT", "reasons": ["tape"]}, ("2x2", ""), clean, req)[:2] == ("green", "DEFECT")
     assert sl.decide_faces({}, ("unknown", ""), clean, req)[:3] == ("green", "UNCERTAIN", "shape_unknown")
+
+
+def test_calibration_run_labels_episodes_in_the_labels_file_only():
+    """A calibration cycle adds its episode to the labels file with the operator's truth; nothing else stores it."""
+    import json
+    import tempfile
+    from unittest import mock
+    import sort_any as sa
+    with tempfile.TemporaryDirectory() as d:
+        lf = os.path.join(d, "labels.json")
+        with mock.patch.object(sa, "LABELS_F", lf), mock.patch.dict(sa.CFG, {"calibrate": {"brick": "x7", "truth": "GOOD"}}), \
+                mock.patch.object(sa, "RUN", os.path.join(d, "cal_a")), mock.patch.object(sa, "EP", {"survey": {"faces": {}}}):
+            sa.label_episode(3)
+            sa.label_episode(4)
+        lab = json.load(open(lf))
+        assert lab["bricks"] == {"x7": "GOOD"} and lab["episodes"] == {"cal_a/ep_0003": "x7", "cal_a/ep_0004": "x7"}, lab
+        with mock.patch.object(sa, "LABELS_F", lf), mock.patch.dict(sa.CFG, {"calibrate": None}), \
+                mock.patch.object(sa, "RUN", os.path.join(d, "run_b")), mock.patch.object(sa, "EP", {"survey": {}}):
+            sa.label_episode(5)  # not a calibration run: nothing added
+        assert len(json.load(open(lf))["episodes"]) == 2

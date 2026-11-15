@@ -117,9 +117,14 @@ def plan_views(q_spot_hover, faces: dict, jaw_mask, search: dict) -> dict:
 
 # ---- runtime: measure the brick in the top view, align the projected faces, cut the face polygons ----
 
+MAT_SIGNIFICANCE = 6.0  # a pixel is "not mat" when it departs from the mat by 6 robust sigmas of the mat's own spread
+
+
 def lab_distance_to_mat(img: np.ndarray, brick_mask: np.ndarray, band_px: int) -> tuple[np.ndarray, dict]:
-    """Lab distance of every pixel to the mat, the mat being sampled in a band around brick_mask (median colour).
-    Returns the distance image and the mat statistics."""
+    """How far every pixel is from the mat, the mat being sampled in a band around brick_mask: colour (a*, b*) in any
+    direction, lightness only upward. A shadow is the mat made darker with its own colour, so it stays mat; a brick
+    face, even in shade, differs in colour or is lighter than a dark mat. Returns the distance image and the mat
+    statistics, including the band's robust spread of that distance (the noise the threshold is scaled by)."""
     k = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * band_px + 1, 2 * band_px + 1))
     outer = cv2.dilate(brick_mask.astype(np.uint8), k) > 0
     band = outer & ~(cv2.dilate(brick_mask.astype(np.uint8), cv2.getStructuringElement(
@@ -128,19 +133,27 @@ def lab_distance_to_mat(img: np.ndarray, brick_mask: np.ndarray, band_px: int) -
     if band.sum() < 50:
         return np.zeros(img.shape[:2], np.float32), {"ok": False}
     med = np.median(lab[band], axis=0)
-    d = np.linalg.norm(lab - med, axis=2)
-    return d, {"ok": True, "mat_lab": [round(float(x), 1) for x in med], "band_px": int(band.sum())}
+    dl = np.maximum(lab[..., 0] - med[0], 0.0)
+    d = np.sqrt(dl * dl + (lab[..., 1] - med[1]) ** 2 + (lab[..., 2] - med[2]) ** 2)
+    db = d[band]
+    sig = float(1.4826 * np.median(np.abs(db - np.median(db))))
+    return d, {"ok": True, "mat_lab": [round(float(x), 1) for x in med], "band_px": int(band.sum()),
+               "d_med": round(float(np.median(db)), 2), "d_sigma": round(sig, 2)}
 
 
-def silhouette(dist: np.ndarray, roi: np.ndarray) -> tuple[np.ndarray, float]:
-    """Brick pixels inside roi: Otsu split of the distance-to-mat values (no fixed cutoff). Returns the mask and the
-    separation quality (between-class variance / total variance, 0..1; low means brick and mat look alike)."""
+def silhouette(dist: np.ndarray, roi: np.ndarray, mat: dict | None = None) -> tuple[np.ndarray, float]:
+    """Brick pixels inside roi: distance to the mat above the mat's median plus MAT_SIGNIFICANCE robust sigmas (the
+    band's own noise; at least one Lab unit). Returns the mask and the separation quality (between-class variance /
+    total variance of the distances in the roi, 0..1; low means brick and mat look alike)."""
     v = dist[roi]
     if v.size < 50 or float(v.max()) <= 0:
         return np.zeros(dist.shape, bool), 0.0
-    v8 = np.clip(v / float(v.max()) * 255.0, 0, 255).astype(np.uint8)
-    t, _ = cv2.threshold(v8.reshape(-1, 1), 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-    thr = t / 255.0 * float(v.max())
+    if mat and mat.get("ok"):
+        thr = mat["d_med"] + MAT_SIGNIFICANCE * max(mat["d_sigma"], 1.0)
+    else:
+        v8 = np.clip(v / float(v.max()) * 255.0, 0, 255).astype(np.uint8)
+        t, _ = cv2.threshold(v8.reshape(-1, 1), 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        thr = t / 255.0 * float(v.max())
     hi, lo = v[v > thr], v[v <= thr]
     tot = float(v.var())
     sep = 0.0 if tot <= 0 or hi.size == 0 or lo.size == 0 else float(
@@ -157,14 +170,77 @@ def poly_mask(shape, uv) -> np.ndarray:
     return m > 0
 
 
+def project_batch(q, P) -> np.ndarray:
+    """Pixels of many base-frame points (N x 3, mm) seen from joints q (the camera model of wristcam, vectorised)."""
+    Rbc, cb = wc.camera_pose(q)
+    X = (np.asarray(P, float) - cb) @ Rbc
+    x, y = X[:, 0] / X[:, 2], X[:, 1] / X[:, 2]
+    d = 1.0 + wc.M["k1"] * (x * x + y * y)
+    return np.stack([wc.M["f"] * x * d + wc.M["cx"], wc.M["f"] * y * d + wc.M["cy"]], 1)
+
+
+def box_silhouette(q, cb, xy, yaw, size_xy, height, window) -> np.ndarray:
+    """Mask (inside window = (x0, y0, w, h)) of the faces of a box on the mat that face the camera centre cb."""
+    faces = brick_faces(xy, yaw, size_xy, height, kin.MAT_Z)
+    x0, y0, w, h = window
+    m = np.zeros((h, w), np.uint8)
+    for f in faces.values():
+        pts = np.array(f["pts"])
+        if float(f["n"] @ (cb - pts.mean(axis=0))) <= 0:
+            continue
+        uv = project_batch(q, pts) - np.array([x0, y0])
+        cv2.fillConvexPoly(m, np.round(uv).astype(np.int32), 1)
+    return m > 0
+
+
+def fit_box(comp: np.ndarray, q, xy0, yaw0: float, sp: dict) -> dict:
+    """Analysis by synthesis: for every footprint of whole stud counts (1 to 4 per side) and both orientations, the box
+    pose (x, y, yaw) whose projected visible faces best overlap the brick's silhouette (pattern search on IoU). The
+    footprint and pose with the best IoU win."""
+    _, cb = wc.camera_pose(q)
+    ys, xs = np.nonzero(comp)
+    pad = 20
+    x0, y0 = max(0, xs.min() - pad), max(0, ys.min() - pad)
+    x1, y1 = min(comp.shape[1], xs.max() + pad), min(comp.shape[0], ys.max() + pad)
+    win = (int(x0), int(y0), int(x1 - x0), int(y1 - y0))
+    obs = comp[y0:y1, x0:x1]
+    n_obs = float(obs.sum())
+    pitch = sp["footprint_mm"] / sp["studs"][0]
+    h = sp["height_mm"]
+
+    def iou(x, y, a, size):
+        m = box_silhouette(q, cb, (x, y), a, size, h, win)
+        inter = float((m & obs).sum())
+        return inter / (float(m.sum()) + n_obs - inter + 1e-6)
+
+    best = None
+    for ns in range(1, 5):
+        for nl in range(ns, 5):
+            for turn in (0.0, math.pi / 2):
+                size = (ns * pitch, nl * pitch)
+                x, y, a = float(xy0[0]), float(xy0[1]), yaw0 + turn
+                cur = iou(x, y, a, size)
+                for step_mm, step_rad in ((4.0, 0.12), (2.0, 0.06), (1.0, 0.03), (0.5, 0.015)):
+                    improved = True
+                    while improved:
+                        improved = False
+                        for dx, dy, da in ((step_mm, 0, 0), (-step_mm, 0, 0), (0, step_mm, 0), (0, -step_mm, 0),
+                                           (0, 0, step_rad), (0, 0, -step_rad)):
+                            v = iou(x + dx, y + dy, a + da, size)
+                            if v > cur + 1e-6:
+                                x, y, a, cur, improved = x + dx, y + dy, a + da, v, True
+                if best is None or cur > best["iou"]:
+                    best = {"iou": cur, "xy": [x, y], "yaw": a, "studs": [ns, nl], "size_mm": [ns * pitch, nl * pitch]}
+    return best
+
+
 def measure_top(img: np.ndarray, q, prior_xy, yaw0: float, sp: dict) -> dict:
-    """Brick centre (base xy, mm), yaw (rad, modulo 90 deg) and footprint (mm) from a top view: project the prior
-    footprint, segment the brick against the mat around it, fit the minimum-area rectangle and map its corners to the
-    brick-top plane with the camera model."""
+    """Brick centre (base xy, mm), yaw (rad, modulo 90 deg) and footprint (whole studs) from one view: segment the
+    brick against the mat around the prior, then fit the box model to the silhouette (fit_box). A blob that runs to
+    the edge of its search area touches a neighbour and is not measured."""
     fp = sp["footprint_mm"]
-    z_top = kin.MAT_Z + sp["height_mm"]
     faces = brick_faces(prior_xy, yaw0, (fp, fp), sp["height_mm"], kin.MAT_Z)
-    uv = np.array([wc.project(q, p) for p in faces["top"]["pts"]])
+    uv = project_batch(q, np.array(faces["top"]["pts"]))
     size_px = float(np.sqrt(max(1.0, cv2.contourArea(uv.astype(np.float32)))))
     roi_r = int(round(0.9 * size_px))
     prior = poly_mask(img.shape, uv)
@@ -172,28 +248,34 @@ def measure_top(img: np.ndarray, q, prior_xy, yaw0: float, sp: dict) -> dict:
     dist, mat = lab_distance_to_mat(img, roi, int(round(0.4 * size_px)))
     if not mat["ok"]:
         return {"ok": False, "why": "no mat around the brick"}
-    sil, sep = silhouette(dist, roi)
+    sil, sep = silhouette(dist, roi, mat)
     n, lab, st, cen = cv2.connectedComponentsWithStats(sil.astype(np.uint8))
     if n <= 1:
         return {"ok": False, "why": "no brick pixels", "sep": sep}
     c0 = uv.mean(axis=0)
     k = 1 + int(np.argmin([np.hypot(*(cen[i] - c0)) - 1e-3 * st[i, 4] for i in range(1, n)]))
-    ys, xs = np.nonzero(lab == k)
-    rect = cv2.minAreaRect(np.stack([xs, ys], 1).astype(np.float32))
-    corners = cv2.boxPoints(rect)
-    w3 = np.array([wc.pixel_to_mat(q, c, z_top) for c in corners])
-    ctr = w3.mean(axis=0)
-    e1, e2 = w3[1] - w3[0], w3[2] - w3[1]
-    yaw = math.atan2(e1[1], e1[0])
-    yaw = (yaw - yaw0 + math.pi / 4) % (math.pi / 2) - math.pi / 4 + yaw0  # nearest to the prior modulo 90 deg
-    return {"ok": True, "xy": [round(float(ctr[0]), 1), round(float(ctr[1]), 1)], "yaw": round(yaw, 4),
-            "size_mm": sorted([round(float(np.linalg.norm(e1)), 1), round(float(np.linalg.norm(e2)), 1)]),
-            "sep": sep, "mat": mat, "px_area": int(st[k, 4])}
+    comp = lab == k
+    edge = cv2.dilate(roi.astype(np.uint8), np.ones((3, 3), np.uint8)) > 0
+    edge &= ~(cv2.erode(roi.astype(np.uint8), np.ones((3, 3), np.uint8)) > 0)
+    if (comp & edge).any():  # the blob runs out of the search area: merged with a neighbour, not one brick
+        return {"ok": False, "why": "brick blob reaches the edge of its search area (touching a neighbour)", "sep": sep}
+    fit = fit_box(comp, q, prior_xy, yaw0, sp)
+    yaw = (fit["yaw"] - yaw0 + math.pi / 4) % (math.pi / 2) - math.pi / 4 + yaw0  # nearest to the prior modulo 90 deg
+    out = {"ok": fit["iou"] >= sp["fit_min_iou"], "xy": [round(v, 1) for v in fit["xy"]], "yaw": round(yaw, 4),
+           "size_mm": [round(v, 1) for v in fit["size_mm"]], "studs": fit["studs"], "iou": round(fit["iou"], 3),
+           "sep": sep, "mat": mat, "px_area": int(comp.sum())}
+    if not out["ok"]:
+        out["why"] = f"no footprint explains the silhouette (best IoU {out['iou']} < {sp['fit_min_iou']})"
+    else:
+        out["shape"] = ("2x2" if fit["studs"] == sorted(sp["studs"]) else "not_2x2",
+                        f"{fit['studs'][0]}x{fit['studs'][1]} studs (silhouette IoU {out['iou']})")
+    return out
 
 
 def align_shift(img: np.ndarray, proj: dict, search_px: int) -> dict:
-    """Shift (px) of the projected visible faces that best matches the brick silhouette in this view (IoU)."""
-    vis = [r["uv"] for r in proj.values() if r["cos"] > 0 and r["inside"]]
+    """Shift (px) of the projected visible faces that best matches the brick silhouette in this view: the shift with
+    the largest overlap (cross-correlation of the two masks), and the IoU there."""
+    vis = [r["uv"] for r in proj.values() if r["cos"] > 0]
     if not vis:
         return {"ok": False, "why": "no visible face"}
     union = np.zeros(img.shape[:2], bool)
@@ -205,20 +287,21 @@ def align_shift(img: np.ndarray, proj: dict, search_px: int) -> dict:
     dist, mat = lab_distance_to_mat(img, roi, int(round(0.4 * size_px)))
     if not mat["ok"]:
         return {"ok": False, "why": "no mat around the brick"}
-    sil, sep = silhouette(dist, roi)
-    best = (-1.0, 0, 0)
+    sil, sep = silhouette(dist, roi, mat)
     ys, xs = np.nonzero(union)
+    y0, y1, x0, x1 = ys.min(), ys.max() + 1, xs.min(), xs.max() + 1
     H, W = img.shape[:2]
-    for dy in range(-search_px, search_px + 1, 2):
-        for dx in range(-search_px, search_px + 1, 2):
-            y2, x2 = ys + dy, xs + dx
-            ok = (y2 >= 0) & (y2 < H) & (x2 >= 0) & (x2 < W)
-            inter = int(sil[y2[ok], x2[ok]].sum())
-            iou = inter / float(union.sum() + sil.sum() - inter + 1e-6)
-            if iou > best[0]:
-                best = (iou, dx, dy)
-    return {"ok": True, "iou": round(best[0], 3), "shift": [best[1], best[2]], "sep": sep, "mat": mat}
-
+    pad = np.zeros((H + 2 * search_px, W + 2 * search_px), np.float32)
+    pad[search_px:search_px + H, search_px:search_px + W] = sil
+    win = pad[y0:y1 + 2 * search_px, x0:x1 + 2 * search_px]
+    tpl = union[y0:y1, x0:x1].astype(np.float32)
+    cc = cv2.matchTemplate(win, tpl, cv2.TM_CCORR)
+    _, best, _, (bx, by) = cv2.minMaxLoc(cc)
+    dx, dy = int(bx) - search_px, int(by) - search_px
+    inter = float(best)
+    iou = inter / float(union.sum() + sil.sum() - inter + 1e-6)
+    return {"ok": True, "iou": round(iou, 3), "shift": [dx, dy], "sep": sep, "mat": mat,
+            "at_limit": abs(dx) >= search_px or abs(dy) >= search_px}
 
 
 # ---- runtime planning at any brick location (relative view library), occlusion by neighbours ----
@@ -298,3 +381,50 @@ def views_here(q_hover, xy, yaw, sp: dict, jaw_mask, keys: list, others: list, i
         views.append({"q": [round(v, 2) for v in q], "faces": cov})
         todo -= set(cov)
     return {"views": views, "missing": missing + sorted(todo)}
+
+
+def order_views(q_start, views: list, q_end) -> list:
+    """Visit order with the least joint travel (the arm moves joints together, so a hop costs its largest joint
+    change), from q_start through every view back to q_end. Brute force: a survey has at most a handful of views."""
+    import itertools
+    hop = lambda a, b: max(abs(float(x) - float(y)) for x, y in zip(list(a)[:5], list(b)[:5]))  # noqa: E731
+    best, best_cost = list(views), None
+    for perm in itertools.permutations(views):
+        path = [q_start] + [v["q"] for v in perm] + [q_end]
+        cost = sum(hop(a, b) for a, b in zip(path, path[1:]))
+        if best_cost is None or cost < best_cost:
+            best, best_cost = list(perm), cost
+    return best
+
+
+def target_silhouette(img: np.ndarray, proj: dict, faces3d: dict, search_px: int) -> dict:
+    """The surveyed brick in one view: align the projected visible faces to the image (align_shift), keep the
+    not-mat component(s) under the aligned projection, and report the mat around it (for the camera noise) and the
+    mean face scale (mm^2 per px over the visible faces)."""
+    al = align_shift(img, proj, search_px)
+    if not al.get("ok"):
+        return {"ok": False, "why": al.get("why")}
+    dx, dy = al["shift"]
+    vis = {f: r for f, r in proj.items() if r["cos"] > 0}
+    union = np.zeros(img.shape[:2], bool)
+    for r in vis.values():
+        union |= poly_mask(img.shape, r["uv"] + np.array([dx, dy], float))
+    size_px = float(np.sqrt(max(1, int(union.sum()))))
+    roi = cv2.dilate(union.astype(np.uint8), cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * search_px + 1,) * 2)) > 0
+    dist, mat = lab_distance_to_mat(img, roi, int(round(0.4 * size_px)))
+    sil, sep = silhouette(dist, roi, mat)
+    n, lab, st, _ = cv2.connectedComponentsWithStats(sil.astype(np.uint8))
+    keep = np.zeros(img.shape[:2], bool)
+    for i in range(1, n):
+        comp = lab == i
+        if (comp & union).sum() >= 0.5 * comp.sum():  # mostly under the brick: the brick, not a neighbour
+            keep |= comp
+    band = roi & ~cv2.dilate(union.astype(np.uint8), np.ones((5, 5), np.uint8)).astype(bool) & ~sil
+    area_mm2 = sum(faces3d[f]["area_mm2"] for f in vis)
+    proj_px = sum(float(cv2.contourArea(np.asarray(r["uv"], np.float32))) for r in vis.values())
+    rim = max(1, int(round(0.02 * size_px)))  # boundary pixels mix brick and mat: left out of the colour test
+    inner = cv2.erode(keep.astype(np.uint8), cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * rim + 1,) * 2)) > 0
+    return {"ok": True, "mask": inner, "sil": keep, "mat_mask": band, "shift": [dx, dy], "iou": al["iou"],
+            "at_limit": al["at_limit"],
+            "sep": sep, "mm2_per_px": area_mm2 / proj_px if proj_px > 0 else 0.0,
+            "faces": sorted(f for f, r in vis.items() if r["inside"])}

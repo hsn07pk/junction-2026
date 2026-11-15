@@ -33,7 +33,7 @@ FRAME_MAX_AGE = 1.0  # s: an older live frame is not evidence of a clear workspa
 WATCHDOG_DOWN = False  # True while the heartbeat is stale: keeps 'hand watchdog not running' to one line per period
 CLOSE_SPOT_PX = (380, 262)          # brick centre at the spot in the close colour image
 ROLL_PER_90 = 90.0 / ga.YAW_PER_ROLL
-SPOT_FAST = f"{R}/app/motion/gm/spot_fast.yaml"
+SPOT_FAST = os.path.join(ga.APP, "motion", "gm", "spot_fast.yaml")
 CFG = {"transit": 25.0, "approach": 12.0, "fine": 6.0, "desc": 4.0, "accel": 100.0, "multiview": True}
 EP = {}
 
@@ -162,7 +162,7 @@ def mask_jaws(img):
     return out
 
 
-_cm = cv2.imread(f"{R}/app/tools/close_jaw_mask_hover.png", cv2.IMREAD_GRAYSCALE)
+_cm = cv2.imread(os.path.join(ga.APP, "tools", "close_jaw_mask_hover.png"), cv2.IMREAD_GRAYSCALE)
 CLOSE_MASK_HOVER = (_cm > 0) if _cm is not None else None
 
 

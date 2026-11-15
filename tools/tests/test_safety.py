@@ -66,7 +66,8 @@ def test_safety_interrupted_move_reanchors_target_at_present():
     """F-01: a move cut by an e-stop leaves target = present (arm joints), so the next grip/rel cannot finish it."""
     ms = _motion_server()
     with _tree() as root, mock.patch.object(ms, "ACTIVE", os.path.join(root, "motion_active")), \
-            mock.patch.object(ms, "ESTOP", os.path.join(root, "estop")), mock.patch("time.sleep"):
+            mock.patch.object(ms, "ESTOP", os.path.join(root, "estop")), mock.patch.object(ms, "D", root), \
+            mock.patch("time.sleep"):
         present = [10.0, 20.0, 30.0, 40.0, 50.0, 0.0]  # gripper closed on a brick
         srv = ms.Server(_Player(present))
         calls = iter([False, False, False, True] + [True] * 100)  # e-stop after three setpoints

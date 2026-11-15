@@ -28,9 +28,10 @@ import pick_any as pa  # noqa: E402
 import sort_loop as sl  # noqa: E402  (close_verdict, decide, skin/hands helpers, run_fast)
 import inspector as DET2  # noqa: E402
 import closeloc as cl
-import faces as fcs  # noqa: E402
+import defects as dfx  # noqa: E402
 import survey as srv  # noqa: E402
-from paths import APP  # noqa: E402  # noqa: E402
+import scene  # noqa: E402
+from paths import APP  # noqa: E402
 
 R = ga.R
 SPOT_HOVER = [-12.62, 30.0, -19.33, 69.73, -45.65]
@@ -74,7 +75,7 @@ def go_scan(holding=False):
     tmove(c["q_scan"] + [g], CFG["transit"], comp=True)
 
 
-SCAN_PAIRS = f"{ga.RUN_ROOT}/scan_pairs.jsonl" if ga.SIM_ROOT else f"{R}/app/tools/scan_pairs.jsonl"  # (scan px, servo-verified hover xy) from every centred approach
+SCAN_PAIRS = f"{ga.RUN_ROOT}/scan_pairs.jsonl" if ga.SIM_ROOT else os.path.join(APP, "tools", "scan_pairs.jsonl")  # (scan px, servo-verified hover xy) from every centred approach
 SCAN_C = np.eye(2)
 
 
@@ -608,9 +609,8 @@ def station_inspect(k):
     return v, ok
 
 
-FACE_MODEL_F = os.path.join(APP, "config", "face_model.json")
 ALIGN_SEARCH_PX = int(round(6 * float(srv.wc.M["reproj_median_px"])))  # 6 x the camera model's median reprojection error
-SCAN_RESID_MM = None  # median residual (mm) of the current scan map, set by fit_scan_corr: neighbour position uncertainty
+SCAN_RESID_MM = None  # median residual (mm) of the current scan map, set by fit_scan_corr: brick position uncertainty
 
 
 def survey_plan():
@@ -621,132 +621,193 @@ def survey_plan():
         return None
 
 
-def judge_view(img, qa, faces3d, names, model):
-    """Align the projected brick to this view and judge the named faces. qa: joints the arm reached."""
-    proj = srv.project_faces(qa, faces3d, ga.JAW_MASK)
-    al = srv.align_shift(img, proj, ALIGN_SEARCH_PX)
-    out = {}
-    for f in names:
-        uv = proj[f]["uv"] + (np.array(al["shift"], float) if al.get("ok") else 0.0)
-        r = fcs.score(img, uv, faces3d[f]["area_mm2"], model) if model else {"verdict": "UNCERTAIN", "reason": "no face model"}
-        r.update({"cos": round(proj[f]["cos"], 3), "align": {k: al.get(k) for k in ("ok", "iou", "shift", "sep")},
-                  "uv": np.round(uv, 1).tolist(), "q": [round(float(v), 2) for v in qa]})
-        out[f] = r
-    return out
+def pos_sigma_mm(sp):
+    """Position uncertainty of a brick seen at the scan pose: the scan map's median residual; one stud pitch before
+    the first fit."""
+    return SCAN_RESID_MM if SCAN_RESID_MM else sp["footprint_mm"] / sp["studs"][0]
 
 
-def run_views(views, faces3d, model, sdir, tag):
-    """Visit the views (least wrist-roll travel first), photograph, judge. Returns {face: result}."""
+def keep_frame(img, path):
+    """Write a survey frame as JPEG and return exactly what was written: the inspection judges the same pixels that
+    calibrate_defects.py and calib_wristcam.py replay later."""
+    ok, buf = cv2.imencode(".jpg", img, [cv2.IMWRITE_JPEG_QUALITY, 95])
+    if not ok:
+        return img
+    buf.tofile(path)
+    return cv2.imdecode(buf, cv2.IMREAD_COLOR)
+
+
+def run_views(views, sdir, tag, q_from, q_to):
+    """Visit the views in the order with the least joint travel and photograph each (joints read back at the frame).
+    Returns the view records for the inspection."""
     os.makedirs(sdir, exist_ok=True)
-    res = {}
-    for i, v in enumerate(sorted(views, key=lambda v: v["q"][4])):
+    out = []
+    for i, v in enumerate(srv.order_views(q_from, views, q_to)):
         ga.move(list(v["q"]) + [25.0], speed=CFG["transit"], comp=False)
         img = pa.frame()
         qa = ga.state()["present"][:5]
         if img is None:
-            res.update({f: {"verdict": "UNCERTAIN", "reason": "no frame"} for f in v["faces"]})
             continue
-        cv2.imwrite(f"{sdir}/{tag}{i}.jpg", img)
-        for f, r in judge_view(img, qa, faces3d, v["faces"], model).items():
-            r["view"] = f"{tag}{i}"
-            res[f] = r
-    return res
-
-
-def survey_here(k, q_hover, bh, b, cand):
-    """Survey the brick where it lies, before the grasp: views from the relative library that neighbouring bricks do
-    not hide, each face judged; the arm returns to the hover. Faces without a clear view stay open for the spot."""
-    sp = srv.spec()
-    model = fcs.load_model(FACE_MODEL_F)
-    t0 = time.time()
-    img0 = pa.frame()
-    q0 = ga.state()["present"][:5]
-    z_top = kin.MAT_Z + sp["height_mm"]
-    xy0 = [float(v) for v in srv.wc.pixel_to_mat(q0, bh["centre"], z_top)]
-    yaw0 = kin.psi_of(q0)
-    meas = srv.measure_top(img0, q0, xy0, yaw0, sp) if img0 is not None else {"ok": False, "why": "no frame"}
-    xy, yaw = (meas["xy"], meas["yaw"]) if meas.get("ok") else (xy0, yaw0)
-    fp = sp["footprint_mm"]
-    inflate = 2.0 * SCAN_RESID_MM if SCAN_RESID_MM else fp
-    others = [{"xy": c["xy"], "yaw": 0.0, "size_mm": (fp * max(1.0, float(c.get("aspect", 1.0))),) * 2}
-              for c in cand if c is not b and math.hypot(c["xy"][0] - b["xy"][0], c["xy"][1] - b["xy"][1]) > 1.0]
-    lib = srv.library()
-    crit = (json.load(open(srv.LIB_F)).get("criteria", {}) if lib else {})
-    plan = srv.views_here(list(q_hover), xy, yaw, sp, ga.JAW_MASK, lib, others, inflate,
-                          crit.get("min_cos", 0.35), crit.get("max_jaw", 0.03), crit.get("max_occ", 0.02)) if lib else \
-        {"views": [], "missing": list(srv.FACES)}
-    faces3d = srv.brick_faces(xy, yaw, (fp, fp), sp["height_mm"], kin.MAT_Z)
-    sdir = f"{ga.OUT}/survey"
-    os.makedirs(sdir, exist_ok=True)
-    res = {}
-    here = [v for v in plan["views"] if max(abs(a - c) for a, c in zip(v["q"], q0)) < 0.5]
-    if here and img0 is not None:  # the hover itself is one of the views: no move
-        cv2.imwrite(f"{sdir}/here_hover.jpg", img0)
-        for f, r in judge_view(img0, q0, faces3d, here[0]["faces"], model).items():
-            r["view"] = "here_hover"
-            res[f] = r
-    moved = [v for v in plan["views"] if not (here and v is here[0])]
-    if moved:
-        res.update(run_views(moved, faces3d, model, sdir, "here"))
-        ga.move(list(q_hover) + [25.0], speed=CFG["transit"], comp=True)
-    out = {"where": "in_place", "measure": meas, "faces": res, "missing": plan["missing"], "n_views": len(plan["views"]),
-           "neighbours": len(others), "inflate_mm": round(inflate, 1), "survey_s": round(time.time() - t0, 1)}
-    log(f"ep {k}: survey here {len(plan['views'])} views in {out['survey_s']} s: " +
-        " ".join(f"{f}={res.get(f, {}).get('verdict', '-')}" for f in srv.FACES) + f"; missing {plan['missing']}")
+        name = f"{tag}{i}"
+        out.append({"img": keep_frame(img, f"{sdir}/{name}.jpg"), "q": [float(x) for x in qa], "name": name,
+                    "faces": list(v["faces"])})
     return out
 
 
-def survey_inspect(k):
-    """Put the held brick down alone at the planned inspection spot, judge its top and four side faces from the
-    planned views, re-pick it. Returns (survey record, ok); ok is False only when the brick was put down and the
-    re-pick failed (the next cycle picks it up from the spot)."""
-    plan = survey_plan()
-    if plan is None:
-        return {"error": "no survey plan (run plan_survey.py)"}, True
-    model = fcs.load_model(FACE_MODEL_F)
+def survey_views(q_hover, meas, sp, model, sdir, tag):
+    """Plan (library views at this brick's pose), photograph and inspect a measured brick from the hover above it. The
+    hover frame the brick was measured in is a view too. All views are judged together (defects.inspect). Returns
+    (face results, plan, inspection summary)."""
+    fp = sp["footprint_mm"]
+    faces3d = srv.brick_faces(meas["xy"], meas["yaw"], (fp, fp), sp["height_mm"], kin.MAT_Z)
+    lib = srv.library()
+    crit = json.load(open(srv.LIB_F)).get("criteria", {}) if lib else {}
+    plan = srv.views_here(list(q_hover), meas["xy"], meas["yaw"], sp, ga.JAW_MASK, lib, [], 0.0,
+                          crit.get("min_cos", 0.35), crit.get("max_jaw", 0.03), crit.get("max_occ", 0.02)) if lib else \
+        {"views": [], "missing": list(srv.FACES)}
+    os.makedirs(sdir, exist_ok=True)
+    views = []
+    if meas.get("img") is not None:
+        views.append({"img": keep_frame(meas["img"], f"{sdir}/{tag}_hover.jpg"), "q": [float(x) for x in meas["q"]],
+                      "name": f"{tag}_hover", "faces": ["top"]})
+    rest = [v for v in plan["views"] if max(abs(a - c) for a, c in zip(v["q"], q_hover)) >= 0.5]
+    if rest:
+        views += run_views(rest, sdir, tag, q_hover, q_hover)
+        ga.move(list(q_hover) + [25.0], speed=CFG["transit"], comp=True)
+    res, summ = dfx.inspect(views, faces3d, model, None, ALIGN_SEARCH_PX, ga.JAW_MASK)
+    summ["views"] = [{"name": v["name"], "q": v["q"], "faces": v["faces"]} for v in views]
+    return res, plan, summ
+
+
+def measure_here(q_prior_xy, yaw0, sp):
+    """Top view from the current pose: frame, joints, brick measurement (survey.measure_top)."""
+    img = pa.frame()
+    q = ga.state()["present"][:5]
+    m = srv.measure_top(img, q, q_prior_xy, yaw0, sp) if img is not None else {"ok": False, "why": "no frame"}
+    m.update({"img": img, "q": q})
+    return m
+
+
+def lowest_view_elevation(views, xy, sp):
+    """Smallest elevation (rad) of the camera above the brick top over the planned views."""
+    z_top = kin.MAT_Z + sp["height_mm"]
+    el = []
+    for v in views:
+        _, cb = srv.wc.camera_pose(v["q"])
+        el.append(math.atan2(cb[2] - z_top, math.hypot(cb[0] - xy[0], cb[1] - xy[1])))
+    return min(el) if el else math.pi / 2
+
+
+def survey_here(k, q_hover, bh, b, cand):
+    """Survey the brick where it lies, before the grasp, when nothing else stands close enough to hide a face in the
+    planned views (checked on this cycle's scan image: any object, not only pickable bricks). The arm returns to
+    the hover. Faces left open are surveyed at the inspection spot after the grasp."""
     sp = srv.spec()
+    model = dfx.load_model()
     t0 = time.time()
+    q0 = ga.state()["present"][:5]
+    z_top = kin.MAT_Z + sp["height_mm"]
+    xy0 = [float(v) for v in srv.wc.pixel_to_mat(q0, bh["centre"], z_top)]
+    meas = measure_here(xy0, kin.psi_of(q0), sp)
+    out = {"where": "in_place", "measure": {k_: v for k_, v in meas.items() if k_ not in ("img",)}, "faces": {}}
+    if not meas.get("ok"):
+        out.update(missing=list(srv.FACES), why=f"measurement: {meas.get('why')}")
+        log(f"ep {k}: survey here skipped ({out['why']})")
+        return out
+    out["shape"] = meas["shape"]
+    sdir = f"{ga.OUT}/survey"
+    os.makedirs(sdir, exist_ok=True)
+    lib = srv.library()
+    crit = json.load(open(srv.LIB_F)).get("criteria", {}) if lib else {}
+    plan = srv.views_here(list(q_hover), meas["xy"], meas["yaw"], sp, ga.JAW_MASK, lib, [], 0.0,
+                          crit.get("min_cos", 0.35), crit.get("max_jaw", 0.03), crit.get("max_occ", 0.02)) if lib else \
+        {"views": [], "missing": list(srv.FACES)}
+    sig = pos_sigma_mm(sp)
+    radius = sp["footprint_mm"] / 2 + sp["height_mm"] / math.tan(max(lowest_view_elevation(plan["views"], meas["xy"], sp),
+                                                                     1e-3)) + 2 * sig
+    scan = (EPIMG.get("pre") or {}).get("wrist")
+    iso = scene.isolated(scan, scan_cal()["q_scan"], meas["xy"], meas["yaw"], sp, radius, 2 * sig) if scan is not None else \
+        {"isolated": False, "why": "no scan image"}
+    out["isolation"] = iso
+    if not iso.get("isolated"):
+        out.update(missing=list(srv.FACES), why="not alone on the mat: surveyed at the inspection spot")
+        log(f"ep {k}: survey here skipped: objects within {iso.get('radius_mm')} mm ({iso.get('objects_px')})")
+        return out
+    res, plan, summ = survey_views(q_hover, meas, sp, model, sdir, "here")
+    out.update(faces=res, missing=plan["missing"], n_views=len(summ["views"]), inspection=summ,
+               survey_s=round(time.time() - t0, 1))
+    log(f"ep {k}: survey here {len(plan['views'])} views in {out['survey_s']} s, {meas['shape'][1]}: " +
+        " ".join(f"{f}={res.get(f, {}).get('verdict', '-')}" for f in srv.FACES))
+    return out
+
+
+def free_spot(sp):
+    """The first planned inspection spot that this cycle's scan image shows free (anything on it counts)."""
+    plan = survey_plan()
+    scan = (EPIMG.get("pre") or {}).get("wrist")
+    if plan is None or scan is None:
+        return None, "no plan or no scan image"
+    q_scan = scan_cal()["q_scan"]
+    spots = [plan["spot_xy"]] + [s[1:] for s in plan.get("ranked_spots", []) if s[1:] != plan["spot_xy"]]
+    for xy in spots:
+        fr = scene.spot_free(scan, q_scan, xy, sp, 2 * pos_sigma_mm(sp))
+        if fr.get("free"):
+            q_h = kin.ik(xy[0], xy[1], kin.MAT_Z + pa.HOVER_DZ, kin.psi_of(plan["q_hover"]), plan["q_hover"])
+            if q_h is not None:
+                return {"xy": xy, "q_hover": q_h}, None
+    return None, "every planned spot is occupied or out of view"
+
+
+def survey_inspect(k, roll=0.0, repick=True):
+    """Put the held brick down alone at a free inspection spot, measure it from the hover above, survey every face,
+    re-pick it. roll: wrist roll (joint units) added before the put-down, to set the brick down turned (calibration
+    runs vary the pose this way); repick False leaves the brick at the spot. Returns (survey record, ok); ok is False
+    only when the brick was put down and the re-pick failed (the next cycle picks it up from the spot)."""
+    sp = srv.spec()
+    model = dfx.load_model()
+    t0 = time.time()
+    spot, why = free_spot(sp)
+    if spot is None:
+        return {"error": why}, True  # still held: the decision goes on the evidence it has
     p, _ = kin.fk(ga.state()["present"][:5])
     if p[2] < kin.MAT_Z + 80:
         pa.move_rel(ga.state()["present"][:5], 0.0, [0, 0, kin.MAT_Z + 85 - p[2]], speed=CFG["desc"])
-    hi = kin.ik_rel(plan["q_hover"], [0, 0, 35.0])
+    hi = kin.ik_rel(spot["q_hover"], [0, 0, 35.0])
     if hi is None:
         return {"error": "no pose above the inspection spot"}, True
+    lo_b, hi_b = kin.CAL.norm_bounds(3)
+    if roll and lo_b[4] <= hi[4] + roll <= hi_b[4]:
+        hi = list(hi)
+        hi[4] += roll
     ga.move(hi + [0.0], speed=CFG["transit"], comp=True)
     qd = pa.move_rel(hi, 0.0, [0, 0, -(35.0 + pa.HOVER_DZ - pa.TIP_FINAL - 1.0)], speed=CFG["desc"])
     if qd is None:
         return {"error": "put-down IK failed at the inspection spot"}, True  # still held
     ga.cmd({"op": "grip", "value": 25.0, "speed": 25})
     time.sleep(0.3)
-    prior_xy = [float(v) for v in kin.fk(qd)[0][:2]]
+    prior = [float(v) for v in kin.fk(qd)[0][:2]]
     yaw0 = kin.psi_of(qd)
     pa.move_rel(qd, 25.0, [0, 0, 40.0], speed=CFG["desc"])
-    top = plan["views"]["top"]
-    ga.move(list(top["q"]) + [25.0], speed=CFG["transit"], comp=False)
-    img = pa.frame()
-    qa = ga.state()["present"][:5]
-    meas = srv.measure_top(img, qa, prior_xy, yaw0, sp) if img is not None else {"ok": False, "why": "no frame"}
-    xy, yaw = (meas["xy"], meas["yaw"]) if meas.get("ok") else (prior_xy, yaw0)
-    fp = sp["footprint_mm"]
-    faces3d = srv.brick_faces(xy, yaw, (fp, fp), sp["height_mm"], kin.MAT_Z)
-    sdir = f"{ga.OUT}/survey"
-    os.makedirs(sdir, exist_ok=True)
-    res = {}
-    if img is not None:
-        cv2.imwrite(f"{sdir}/spot_top.jpg", img)
-        res.update({f: dict(r, view="spot_top") for f, r in judge_view(img, qa, faces3d, ["top"], model).items()})
-    res.update(run_views([{"q": plan["views"][f]["q"], "faces": [f]} for f in srv.FACES if f != "top"],
-                         faces3d, model, sdir, "spot"))
-    out = {"where": "spot", "plan": plan.get("created_utc"), "spot_xy": plan.get("spot_xy"), "measure": meas,
-           "faces": res, "survey_s": round(time.time() - t0, 1)}
-    log(f"ep {k}: survey at the spot in {out['survey_s']} s: " + " ".join(f"{f}={res.get(f, {}).get('verdict', '-')}"
-                                                                         for f in srv.FACES))
-    ga.move(list(plan["q_hover"]) + [25.0], speed=CFG["transit"], comp=True)
+    ga.move(list(spot["q_hover"]) + [25.0], speed=CFG["transit"], comp=True)
+    meas = measure_here(prior, yaw0, sp)
+    out = {"where": "spot", "spot_xy": spot["xy"], "measure": {k_: v for k_, v in meas.items() if k_ != "img"}, "faces": {}}
+    if meas.get("ok"):
+        out["shape"] = meas["shape"]
+        res, plan, summ = survey_views(spot["q_hover"], meas, sp, model, f"{ga.OUT}/survey", "spot")
+        out.update(faces=res, missing=plan["missing"], n_views=len(summ["views"]), inspection=summ)
+    else:
+        out["why"] = f"measurement at the spot: {meas.get('why')}"
+    out["survey_s"] = round(time.time() - t0, 1)
+    log(f"ep {k}: survey at the spot in {out['survey_s']} s, {out.get('shape', ('?', meas.get('why')))[1]}: " +
+        " ".join(f"{f}={out['faces'].get(f, {}).get('verdict', '-')}" for f in srv.FACES))
+    if not repick:
+        out["left_at_spot"] = True
+        return out, True
     want = EP.get("target_colour")
     bh = pa.find(pa.blobs(pa.frame(), min_area=pa.SERVO_MIN_AREA), pa.target(), 260, want)
     if bh is None:
         return out, False
-    q, bh, okc = pa.servo(list(plan["q_hover"]), 25.0, bh["centre"], log=log, want=want)
+    q, bh, okc = pa.servo(list(spot["q_hover"]), 25.0, bh["centre"], log=log, want=want)
     if bh is None or not okc:
         return out, False
     q, rot = pa.align_yaw(q, 25.0, bh, log=log)
@@ -762,10 +823,23 @@ def survey_inspect(k):
 
 
 def merged_faces():
-    """Face verdicts of this episode: the spot survey (complete, alone) overrides the in-place one."""
-    f = dict((EP.get("survey") or {}).get("faces", {}))
-    f.update((EP.get("survey_spot") or {}).get("faces", {}))
-    return f
+    """Face verdicts of this episode for the decision. Each survey judged the brick as it lay then, and face names of
+    two surveys need not name the same physical face (the brick may be gripped turned), so one survey's faces are
+    used together: a survey that found a DEFECT stands; otherwise the survey with the most CLEAN faces counts."""
+    surveys = [(EP.get(k) or {}).get("faces") or {} for k in ("survey_spot", "survey")]
+    for f in surveys:
+        if any(r.get("verdict") == "DEFECT" for r in f.values()):
+            return dict(f)
+    return dict(max(surveys, key=lambda f: sum(r.get("verdict") == "CLEAN" for r in f.values())))
+
+
+def survey_shape():
+    """The brick's shape from the most reliable measurement of this episode (the spot, then in place)."""
+    for key in ("survey_spot", "survey"):
+        s = (EP.get(key) or {}).get("shape")
+        if s:
+            return tuple(s)
+    return ("unknown", "no valid footprint measurement")
 
 
 def tmove(q, speed, comp=False, accel=120.0):
@@ -775,7 +849,7 @@ def tmove(q, speed, comp=False, accel=120.0):
     return st
 
 
-WP = json.load(open(f"{R}/app/motion/gm/spot_fast.yaml"))["poses"]
+WP = json.load(open(os.path.join(APP, "motion", "gm", "spot_fast.yaml")))["poses"]
 PLATE_IN = {"blue": [4, 3, 2, 1, 0], "green": [4, 3, 2, 1, 0]}
 PLATE_OUT = {"blue": [1, 2, 3], "green": [1, 2, 3, 4]}
 
@@ -862,7 +936,7 @@ def periodic_jaw_check(k, every=5):
 
 def cycle(k):
     global EP
-    EP = {"episode": k, "run": os.path.basename(RUN), "mode": "pick_anywhere", "truth": CFG.get("collect")}
+    EP = {"episode": k, "run": os.path.basename(RUN), "mode": "calibration" if CFG.get("calibrate") else "pick_anywhere"}
     ep_dir = f"{RUN}/ep_{k:04d}"
     os.makedirs(f"{ep_dir}/crops", exist_ok=True)
     ga.OUT = ep_dir
@@ -914,11 +988,13 @@ def cycle(k):
         return
     shape = info
     t1 = time.time()
+    if CFG.get("calibrate"):
+        calibration_rest(k, T, t0)
+        return
     pre = EP.get("pre_close") or {}
     views = []
     have = merged_faces()
-    if shape[0] == "2x2" and pre.get("verdict") != "CONFIDENT_DEFECT" and \
-            not any(r.get("verdict") == "DEFECT" for r in have.values()) and \
+    if survey_shape()[0] != "not_2x2" and not any(r.get("verdict") == "DEFECT" for r in have.values()) and \
             any(have.get(f, {}).get("verdict") != "CLEAN" for f in srv.FACES):
         surv, ok2 = survey_inspect(k)
         EP["survey_spot"] = surv
@@ -931,7 +1007,9 @@ def cycle(k):
     T["inspect_s"] = round(time.time() - t1, 1)
     pre = EP.get("pre_close") or {"verdict": "UNCERTAIN"}
     colour = pre.get("colour") or EP.get("target_colour") or "unknown"
-    plate, label, conf, reasons = sl.decide_faces(pre, shape, merged_faces(), srv.FACES)
+    shape = survey_shape()
+    EP["shape_survey"] = list(shape)
+    plate, label, conf, reasons = sl.decide_faces({}, shape, merged_faces(), srv.FACES)
     EP.update({"views": views, "colour": colour, "plate": plate, "label": label, "decision_conf": conf,
                "decision_reasons": reasons, "label_source": "det2", "needs_review": conf not in ("confident", "held_only"),
                "task": f"move the {colour} brick to the {plate} plate"})
@@ -949,6 +1027,60 @@ def cycle(k):
     log(f"ep {k}: DONE {label} -> {plate} in {T['cycle_s']} s {T}")
 
 
+LABELS_F = os.path.join(ga.LOG_ROOT, "sort", "labels.json")  # ground truth for calibrate_defects.py (operator's labels)
+
+
+def calibration_rest(k, T, t0):
+    """Calibration run, after the grasp: survey the brick again at a free spot, set down turned by a random wrist
+    roll, and leave it there (no decision, no plate). The next cycle picks it up again: every cycle adds two surveys of
+    the same physical brick at new poses."""
+    lo_b, hi_b = kin.CAL.norm_bounds(3)
+    q = ga.state()["present"][:5]
+    span = min(hi_b[4] - q[4], q[4] - lo_b[4], 30.0)
+    roll = float(np.random.default_rng().uniform(-span, span)) if span > 0 else 0.0
+    t1 = time.time()
+    surv, _ = survey_inspect(k, roll=roll, repick=False)
+    EP["survey_spot"] = surv
+    T["inspect_s"] = round(time.time() - t1, 1)
+    if not surv.get("left_at_spot"):  # still held (no free spot or no pose): set it down where it is
+        set_down_here()
+        log(f"ep {k}: calibration: no spot survey ({surv.get('error')}); brick set down where it was held")
+    go_scan(False)
+    EP["t_end"] = time.time()
+    ga.cmd({"op": "rec_stop"})
+    T["cycle_s"] = round(EP["t_end"] - t0, 1)
+    EP.update({"success": True, "failure": None, "timings": T, "calibration": CFG["calibrate"]})
+    log(f"ep {k}: calibration cycle of brick {CFG['calibrate']['brick']} done in {T['cycle_s']} s")
+
+
+def set_down_here():
+    """Lower the held brick straight down onto the mat (put-down height as at the inspection spot), open, lift."""
+    q = ga.state()["present"][:5]
+    p, _ = kin.fk(q)
+    qd = pa.move_rel(q, 0.0, [0, 0, (kin.MAT_Z + pa.TIP_FINAL + 1.0) - p[2]], speed=CFG["desc"])
+    ga.cmd({"op": "grip", "value": 25.0, "speed": 25})
+    time.sleep(0.3)
+    if qd is not None:
+        pa.move_rel(qd, 25.0, [0, 0, 40.0], speed=CFG["desc"])
+
+
+def label_episode(k):
+    """Add this calibration episode to the labels file (atomic write), with the operator's truth for the brick."""
+    cal = CFG.get("calibrate")
+    if not cal or not (EP.get("survey") or EP.get("survey_spot")):
+        return
+    try:
+        lab = json.load(open(LABELS_F))
+    except (OSError, ValueError):
+        lab = {"bricks": {}, "episodes": {}, "source": "operator, sort_any.py --calibrate"}
+    lab.setdefault("bricks", {})[cal["brick"]] = cal["truth"]
+    lab.setdefault("episodes", {})[f"{os.path.basename(RUN)}/ep_{k:04d}"] = cal["brick"]
+    os.makedirs(os.path.dirname(LABELS_F), exist_ok=True)
+    with open(LABELS_F + ".tmp", "w") as f:
+        json.dump(lab, f, indent=1)
+    os.replace(LABELS_F + ".tmp", LABELS_F)
+
+
 def save_ep(k):
     if not EP:
         return
@@ -964,6 +1096,7 @@ def save_ep(k):
                   "wrist_dir": "data/wrist/raw"}
     os.makedirs(f"{RUN}/ep_{k:04d}", exist_ok=True)
     json.dump(EP, open(f"{RUN}/ep_{k:04d}/episode.json", "w"), indent=1, default=str)
+    label_episode(k)
     with open(f"{RUN}/cycles.jsonl", "a") as f:
         f.write(json.dumps({x: EP.get(x) for x in ("episode", "t_start", "t_end", "task", "plate", "label", "decision_conf",
                                                   "decision_reasons", "colour", "shape", "success", "failure",
@@ -981,7 +1114,7 @@ def finish_held():
     if not plate:
         views = []
         have = merged_faces()
-        if not any(r.get("verdict") == "DEFECT" for r in have.values()) and \
+        if survey_shape()[0] != "not_2x2" and not any(r.get("verdict") == "DEFECT" for r in have.values()) and \
                 any(have.get(f, {}).get("verdict") != "CLEAN" for f in srv.FACES):
             surv, ok2 = survey_inspect(EP.get("episode", 0))
             EP["survey_spot"] = surv
@@ -989,8 +1122,9 @@ def finish_held():
                 log("held brick put down at the inspection spot; re-pick failed - the next cycle picks it up")
                 return None
         pre = EP.get("pre_close") or {"verdict": "UNCERTAIN"}
-        shape = (EP.get("shape") or EP.get("re_shape") or "unknown", EP.get("shape_why") or EP.get("re_shape_why") or "")
-        plate, label, conf, reasons = sl.decide_faces(pre, shape, merged_faces(), srv.FACES)
+        shape = survey_shape()
+        EP["shape_survey"] = list(shape)
+        plate, label, conf, reasons = sl.decide_faces({}, shape, merged_faces(), srv.FACES)
         colour = pre.get("colour") or EP.get("target_colour") or "unknown"
         EP.update({"views": views, "plate": plate, "label": label, "decision_conf": conf, "colour": colour,
                    "decision_reasons": reasons, "label_source": "det2", "needs_review": conf not in ("confident", "held_only"), "task": f"move the {colour} brick to the {plate} plate"})
@@ -1074,8 +1208,11 @@ def main():
     ap.add_argument("--n", type=int, default=150)
     ap.add_argument("--start", type=int, default=1)
     ap.add_argument("--speed", type=float, default=1.0)
-    ap.add_argument("--collect", choices=("GOOD", "DEFECT"), default=None,
-                    help="calibration run: every brick on the mat is of this kind (truth in episode.json for fit_faces.py)")
+    ap.add_argument("--calibrate", metavar="BRICK_ID", default=None,
+                    help="calibration run with one brick on the mat (any id the operator gives it): every cycle surveys it "
+                         "twice and sets it down again, never on a plate; episodes go to logs/sort/labels.json")
+    ap.add_argument("--truth", choices=("GOOD", "DEFECT"), default=None,
+                    help="the calibration brick's ground truth (written to the labels file only)")
     ap.add_argument("--profile", choices=("safe", "fast"), default="safe",
                     help="fast = untested speed-ups (transit 45, hover 25, desc 14, final 6, servo 18); try it on a few "
                          "cycles and compare cycles.jsonl timings before using it for collection")
@@ -1089,7 +1226,16 @@ def main():
     for key in ("transit", "hover", "servo", "desc"):
         CFG[key] = min(45.0, CFG[key] * a.speed)
     CFG["profile"] = a.profile
-    CFG["collect"] = a.collect
+    if a.calibrate:
+        if not a.truth:
+            sys.exit("--calibrate needs --truth GOOD or DEFECT")
+        try:
+            known = (json.load(open(LABELS_F)).get("bricks") or {}).get(a.calibrate)
+        except (OSError, ValueError):
+            known = None
+        if known and known != a.truth:
+            sys.exit(f"labels file already gives brick {a.calibrate} as {known}")
+        CFG["calibrate"] = {"brick": a.calibrate, "truth": a.truth}
     if os.path.exists(f"{ga.RUN_ROOT}/sort_stop"):
         os.remove(f"{ga.RUN_ROOT}/sort_stop")
     log(f"start {a.run} n={a.n} cfg={CFG} target={ga.TARGET_PX}")

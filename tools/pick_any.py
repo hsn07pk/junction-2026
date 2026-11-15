@@ -25,7 +25,7 @@ TIP_FINAL = 8.0
 SIZE_K, SIZE_C = 9886.0, 33.0          # tip height above the mat (mm) = SIZE_K / short_side_px - SIZE_C (hover tilt)
 SCAN_UP = 70.0
 SERVO_SPEED = 12.0
-SCALF = f"{R}/app/tools/scan_calib.json"
+SCALF = os.path.join(ga.APP, "tools", "scan_calib.json")
 PLATE_HUES = ((85, 112), (38, 85))     # blue, green plates (OpenCV hue)
 
 
