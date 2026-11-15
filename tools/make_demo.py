@@ -27,6 +27,7 @@ import re
 import shutil
 import statistics
 import subprocess
+import time
 import sys
 from dataclasses import dataclass
 from fractions import Fraction
@@ -296,8 +297,8 @@ def load_segments(cam, files, notes):
     segs = []
     for i, (start, media_end, path, w, h) in enumerate(recs):
         nxt = recs[i + 1][0] if i + 1 < len(recs) else None
-        if nxt is None:
-            end = media_end
+        if nxt is None:  # the newest segment may still be recording (no duration yet): it runs to now
+            end = media_end if media_end is not None else time.time()
         elif media_end is None or nxt - media_end <= GAP_TOL_S:
             end = nxt
         else:
