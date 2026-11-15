@@ -36,7 +36,7 @@ from paths import APP  # noqa: E402
 R = ga.R
 SPOT_HOVER = list(kin.cell.get("spot_hover_q"))
 PLATES_F = os.path.join(ga.RUN_ROOT, "plates_seen.json")  # where each plate was last seen, and bricks placed on it
-CFG = {"transit": 42.0, "hover": 18.0, "servo": 12.0, "desc": 10.0, "final": 4.0}  # overwritten by the --profile
+CFG = {"transit": 42.0, "hover": 18.0, "servo": 12.0, "desc": 10.0, "final": 4.0, "grip": 20.0}  # set by --profile
 PROFILES = json.load(open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config",
                                        "motion_profiles.json")))
 EP = {}
@@ -387,7 +387,7 @@ def grasp(q, bh, retry=False, tag=""):
     if q2 is None:
         return False, "ik fail final descent"
     ga.snap_async(tag + "grasp_open")
-    ga.cmd({"op": "grip", "value": 0.0, "speed": 20})
+    ga.cmd({"op": "grip", "value": 0.0, "speed": CFG["grip"]})
     gr = ga.wait_grip()
     EP[tag + "grip_closed"] = gr
     ga.snap_async(tag + "closed")
@@ -585,7 +585,7 @@ def survey_inspect(k, roll=0.0, repick=True):
     qd = pa.move_rel(hi, 0.0, [0, 0, -(35.0 + pa.HOVER_DZ - pa.TIP_FINAL - 1.0)], speed=CFG["desc"])
     if qd is None:
         return {"error": "put-down IK failed at the inspection spot"}, True  # still held
-    ga.cmd({"op": "grip", "value": 25.0, "speed": 25})
+    ga.cmd({"op": "grip", "value": 25.0, "speed": max(25.0, CFG["grip"])})
     time.sleep(0.3)
     prior = [float(v) for v in kin.fk(qd)[0][:2]]
     yaw0 = kin.psi_of(qd)
@@ -689,7 +689,8 @@ def survey_shape():
     return ("unknown", "no valid footprint measurement")
 
 
-def tmove(q, speed, comp=False, accel=120.0):
+def tmove(q, speed, comp=False, accel=None):
+    accel = max(120.0, ga.ACCEL) if accel is None else accel
     st = ga.cmd({"op": "move", "q": [float(x) for x in q], "speed": speed, "comp": comp, "accel": accel})
     if st["status"] != "ok":
         raise ga.Stop(f"tmove -> {st['status']} {st['msg']}")
@@ -747,7 +748,7 @@ def place(plate):
             pa.move_rel(q, 0.0, [0, 0, carry - p[2]], speed=CFG["desc"] * 2)
         tmove(list(qa) + [0.0], CFG["transit"])
         tmove(list(qr) + [0.0], CFG["desc"] * 2)
-        ga.cmd({"op": "grip", "value": 25.0, "speed": 30})
+        ga.cmd({"op": "grip", "value": 25.0, "speed": max(30.0, CFG["grip"])})
         time.sleep(0.2)
         ga.snap_async("released")
         tmove(list(qa) + [25.0], CFG["transit"])
@@ -767,7 +768,7 @@ def place_taught(plate):
         pa.move_rel(q, 0.0, [0, 0, kin.MAT_Z + 90 - p[2]], speed=CFG["desc"] * 2)
     for i in PLATE_IN[plate]:
         tmove(WP[f"{plate}_wp{i}_closed"], CFG["transit"])
-    ga.cmd({"op": "grip", "value": 25.0, "speed": 30})
+    ga.cmd({"op": "grip", "value": 25.0, "speed": max(30.0, CFG["grip"])})
     time.sleep(0.2)
     ga.snap_async("released")
     for i in PLATE_OUT[plate]:
@@ -1004,7 +1005,7 @@ def set_down_here():
     q = ga.state()["present"][:5]
     p, _ = kin.fk(q)
     qd = pa.move_rel(q, 0.0, [0, 0, (kin.MAT_Z + pa.TIP_FINAL + 1.0) - p[2]], speed=CFG["desc"])
-    ga.cmd({"op": "grip", "value": 25.0, "speed": 25})
+    ga.cmd({"op": "grip", "value": 25.0, "speed": max(25.0, CFG["grip"])})
     time.sleep(0.3)
     if qd is not None:
         pa.move_rel(qd, 25.0, [0, 0, 40.0], speed=CFG["desc"])
@@ -1164,6 +1165,7 @@ def main():
     prof = PROFILES[a.profile]
     CFG.update({k: float(prof[k]) for k in ("transit", "hover", "servo", "desc", "final")})
     CFG["settle_s"] = float(prof.get("settle_s", 0.0))
+    CFG["grip"] = float(prof.get("grip", 20.0))
     hard = float(PROFILES["limits"]["hard_speed"])
     for key in ("transit", "hover", "servo", "desc"):
         CFG[key] = min(hard, CFG[key] * a.speed)

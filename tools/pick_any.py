@@ -273,7 +273,7 @@ def align_yaw(q, g, b, log=print):
     nr = float(np.clip(nr, -97, 97))
     qn = list(q)
     qn[4] = round(nr, 2)
-    st = ga.cmd({"op": "move", "q": qn + [g], "speed": 25, "comp": True, "accel": 120})
+    st = ga.cmd({"op": "move", "q": qn + [g], "speed": max(25.0, SERVO_SPEED), "comp": True, "accel": max(120.0, ga.ACCEL)})
     if st["status"] != "ok":
         raise ga.Stop(f"yaw -> {st['status']}")
     log(f"yaw {yaw:.1f} deg -> roll {qn[4]}")
