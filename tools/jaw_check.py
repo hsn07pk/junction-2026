@@ -48,6 +48,9 @@ def main():
     ap.add_argument("--tol", type=float, default=15.0, help="px change of the tip-to-tip vector still fully ok")
     ap.add_argument("--fail", type=float, default=25.0, help="px change that means a loose or bent jaw")
     ap.add_argument("--no-move", action="store_true")
+    ap.add_argument("--accept-bent", action="store_true",
+                    help="a fixed jaw bent away from the reference but rigid (the tips stay put over the wrist rolls) is "
+                         "accepted: mask and servo target follow the jaws as they are now")
     a = ap.parse_args()
     st = ga.state()
     q = list(st["target"])
@@ -105,7 +108,9 @@ def main():
         out["ok"] = dg <= a.tol
         print(json.dumps(out))
         return 0 if out["ok"] else 3
-    if dg > a.fail:
+    if dg > a.fail and a.accept_bent and out["spread_px"] is not None and out["spread_px"] <= a.tol and len(meas) >= 2:
+        out["bent_accepted"] = f"jaw gap {dg:.0f}px from the tight reference, rigid over the rolls ({out['spread_px']}px)"
+    elif dg > a.fail:
         out["ok"] = False
         out["error"] = f"the jaws moved {dg:.0f}px relative to each other (fixed jaw loose or bent): tighten the fixed jaw"
         print(json.dumps(out))

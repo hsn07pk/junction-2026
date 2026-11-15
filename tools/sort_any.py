@@ -774,7 +774,8 @@ def place_taught(plate):
 
 def run_jaw_check(move=True):
     """Jaw_check.py at the current pose (the scan pose, gripper open). Returns (exit code, result dict)."""
-    args = [f"{R}/envs/data-env/bin/python", "-B", "jaw_check.py"] + ([] if move else ["--no-move"])
+    args = [f"{R}/envs/data-env/bin/python", "-B", "jaw_check.py"] + ([] if move else ["--no-move"]) + \
+        (["--accept-bent"] if CFG.get("accept_bent_jaw") else [])
     r = subprocess.run(args, cwd=os.path.dirname(os.path.abspath(__file__)), capture_output=True, text=True, timeout=60)
     lines = [ln for ln in r.stdout.strip().splitlines() if ln.strip().startswith("{")]
     return r.returncode, (json.loads(lines[-1]) if lines else {"error": (r.stderr or r.stdout)[-300:]})
@@ -1142,6 +1143,8 @@ def main():
     ap.add_argument("--calibrate", metavar="BRICK_ID", default=None,
                     help="calibration run with one brick on the mat (any id the operator gives it): every cycle surveys it "
                          "twice and sets it down again, never on a plate; episodes go to logs/sort/labels.json")
+    ap.add_argument("--accept-bent-jaw", action="store_true",
+                    help="run with a bent but rigid fixed jaw: the jaw check accepts the jaws as they are")
     ap.add_argument("--truth", choices=("GOOD", "DEFECT"), default=None,
                     help="the calibration brick's ground truth (written to the labels file only)")
     ap.add_argument("--profile", choices=("safe", "fast"), default="safe",
@@ -1157,6 +1160,7 @@ def main():
     for key in ("transit", "hover", "servo", "desc"):
         CFG[key] = min(45.0, CFG[key] * a.speed)
     CFG["profile"] = a.profile
+    CFG["accept_bent_jaw"] = a.accept_bent_jaw
     if a.calibrate:
         if not a.truth:
             sys.exit("--calibrate needs --truth GOOD or DEFECT")

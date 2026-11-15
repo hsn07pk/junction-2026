@@ -18,7 +18,7 @@ say() { echo "$(date -u +%H:%M:%SZ) $*"; }
 alive() { [ -f "$1" ] && kill -0 "$(cat "$1")" 2>/dev/null; }
 age() { echo $(( $(date +%s) - $(stat -c %Y "$1" 2>/dev/null || echo 0) )); }
 
-RUN="any_$(date -u +%Y%m%d_%H%M)"; N=150; START=1; PROFILE=safe; LOOP=1; STATUS=0; CALIBRATE=""; TRUTH=""
+RUN="any_$(date -u +%Y%m%d_%H%M)"; N=150; START=1; PROFILE=safe; LOOP=1; STATUS=0; CALIBRATE=""; TRUTH=""; BENT=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --run) RUN=$2; shift 2 ;;
@@ -27,6 +27,7 @@ while [ $# -gt 0 ]; do
     --profile) PROFILE=$2; shift 2 ;;
     --calibrate) CALIBRATE=$2; shift 2 ;;
     --truth) TRUTH=$2; shift 2 ;;
+    --accept-bent-jaw) BENT=1; shift ;;
     --no-loop) LOOP=0; shift ;;
     --status) STATUS=1; shift ;;
     *) echo "unknown option $1"; exit 64 ;;
@@ -105,7 +106,7 @@ if [ "$LOOP" = 1 ]; then
   else
     rm -f run/sort_stop run/sort_pause
     echo "$RUN" > run/sort_run_name
-    (cd app/tools && nohup $PY -u -B sort_any.py --run "$RUN" --n "$N" --start "$START" --profile "$PROFILE" ${CALIBRATE:+--calibrate "$CALIBRATE" --truth "$TRUTH"} \
+    (cd app/tools && nohup $PY -u -B sort_any.py --run "$RUN" --n "$N" --start "$START" --profile "$PROFILE" ${CALIBRATE:+--calibrate "$CALIBRATE" --truth "$TRUTH"} ${BENT:+--accept-bent-jaw} \
         >> "$R/logs/sort_any_$RUN.out" 2>&1 & echo $! > "$R/run/sort_any.pid")
     sleep 3
     alive run/sort_any.pid || { say "sort loop exited at start: see logs/sort_any_$RUN.out"; tail -5 "logs/sort_any_$RUN.out"; exit 10; }
