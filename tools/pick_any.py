@@ -83,18 +83,27 @@ def blobs(img, min_area=2500, max_area=60000):
     for lo, hi in PLATE_HUES:
         plate |= (H >= lo) & (H < hi) & (S >= 70) & (V >= 70)
     out = []
+    masks = {}
     for cname, fn in COLOUR_CLASSES.items():
         fg = fn(H, S, V) & ~jaw
         fg8 = cv2.morphologyEx(fg.astype(np.uint8) * 255, cv2.MORPH_OPEN, np.ones((7, 7), np.uint8))
-        fg8 = cv2.morphologyEx(fg8, cv2.MORPH_CLOSE, np.ones((9, 9), np.uint8))
-        # 18:16Z: one white brick split into top/side pieces and the servo alternated between them; label on a
-        # 15 px bridge so the pieces of one brick stay one blob, measure on the real pixels only.
-        bridge = cv2.dilate(fg8, np.ones((15, 15), np.uint8))
-        n, lab, st, cen = cv2.connectedComponentsWithStats(bridge)
-        for i in range(1, n):
-            if int(st[i, 4]) < min_area:
-                continue
-            m = (lab == i) & (fg8 > 0)
+        masks[cname] = cv2.morphologyEx(fg8, cv2.MORPH_CLOSE, np.ones((9, 9), np.uint8)) > 0
+    # One blob per brick whatever its faces' colour classes: a cream brick's light top reads white and its sides
+    # yellow, and tracking one class alone followed a side sliver (05:56Z: short 40 px, yaw 88 deg, brick lost). The
+    # pieces of all classes are joined on a 15 px bridge (18:16Z: one brick split into top/side pieces); the blob
+    # takes the class with the most pixels and is measured on the real pixels only.
+    union = np.zeros(H.shape, bool)
+    for m_ in masks.values():
+        union |= m_
+    bridge = cv2.dilate(union.astype(np.uint8) * 255, np.ones((15, 15), np.uint8))
+    n, lab, st, cen = cv2.connectedComponentsWithStats(bridge)
+    for i in range(1, n):
+        if int(st[i, 4]) < min_area:
+            continue
+        comp = lab == i
+        cname = max(masks, key=lambda c: int((masks[c] & comp).sum()))
+        if True:
+            m = comp & union
             a = int(m.sum())
             if a < min_area or a > max_area:
                 continue
