@@ -84,7 +84,9 @@ def main():
     found = md.scan_recordings(a.root, notes)
     tag = "_".join(runs)
     for cam, files in found.items():
-        near = [(ep, p) for ep, p in files if t0 - 4000 <= ep <= t1]  # only segments that can overlap the window
+        files = sorted(files)
+        before = [f for f in files if f[0] <= t0]
+        near = before[-1:] + [f for f in files if t0 < f[0] <= t1]  # the segment running at t0 and those starting later
         segs = md.load_segments(cam, near, notes)
         out = os.path.join(a.out_dir, f"{tag}_{cam}.mp4")
         n = export(cam, segs, spans, out, tmp)
