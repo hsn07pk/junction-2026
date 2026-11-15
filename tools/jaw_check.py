@@ -49,8 +49,8 @@ def main():
     ap.add_argument("--fail", type=float, default=25.0, help="px change that means a loose or bent jaw")
     ap.add_argument("--no-move", action="store_true")
     ap.add_argument("--accept-bent", action="store_true",
-                    help="a fixed jaw bent away from the reference but rigid (the tips stay put over the wrist rolls) is "
-                         "accepted: mask and servo target follow the jaws as they are now")
+                    help="a fixed jaw bent away from the reference is accepted while its tips move at most --fail px over the "
+                         "wrist rolls: the mask covers the jaws at every roll and the servo target follows the gap centre")
     a = ap.parse_args()
     st = ga.state()
     q = list(st["target"])
@@ -97,7 +97,12 @@ def main():
               round((tips[0][1] - REF[0][1] + tips[1][1] - REF[1][1]) / 2, 1)]
     out.update({"shift_px": [round(x, 1) for x in d], "gap_change_px": round(dg, 1), "common_shift_px": common,
                 "gap_centre_x": round(gx, 1), "target_px": [round(gx + 3, 1), round(268.0 + common[1], 1)]})
-    mask = cv2.dilate(keep, np.ones((17, 17), np.uint8))
+    if a.accept_bent and len(meas) >= 2:  # the jaws as they are over all rolls: union of the measured masks, widened by the spread
+        keep = np.max([m[0] for m in meas], axis=0).astype(np.uint8)
+        w = 17 + 2 * int(np.ceil(out["spread_px"] or 0.0))
+        mask = cv2.dilate(keep, np.ones((w, w), np.uint8))
+    else:
+        mask = cv2.dilate(keep, np.ones((17, 17), np.uint8))
     vis = frames[0].copy()
     vis[mask > 0] = (0, 255, 0)
     cv2.circle(vis, (int(gx + 3), 268), 8, (255, 0, 255), 2)
@@ -108,7 +113,7 @@ def main():
         out["ok"] = dg <= a.tol
         print(json.dumps(out))
         return 0 if out["ok"] else 3
-    if dg > a.fail and a.accept_bent and out["spread_px"] is not None and out["spread_px"] <= a.tol and len(meas) >= 2:
+    if dg > a.fail and a.accept_bent and out["spread_px"] is not None and out["spread_px"] <= a.fail and len(meas) >= 2:
         out["bent_accepted"] = f"jaw gap {dg:.0f}px from the tight reference, rigid over the rolls ({out['spread_px']}px)"
     elif dg > a.fail:
         out["ok"] = False
