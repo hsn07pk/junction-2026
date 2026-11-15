@@ -282,10 +282,19 @@ def trim_edges(ok: np.ndarray, edge_d: np.ndarray, edge_id: np.ndarray, resid: n
     return out
 
 
+HIGHLIGHT_MAX_PX = 1500  # a clipped blob up to this size is a glossy highlight; larger ones are a bright face itself
+
+
 def clipped_halo(img: np.ndarray) -> np.ndarray:
-    """Pixels at the sensor ceiling and the halo around each clipped blob: a glossy highlight bright enough to clip
-    its core spills over about as far again as its core radius (the halo is still the lamp, not the plastic)."""
-    clip = (img.max(axis=2) >= CLIP).astype(np.uint8)
+    """Glossy highlights and the halo around each: blobs where every channel is at the sensor ceiling (the lamp seen
+    in the plastic, white whatever the brick's colour), small enough to be a highlight; a highlight bright enough to
+    clip its core spills over about as far again as its core radius. A face that is itself at the ceiling over a large
+    area (a saturated colour channel, or an over-exposed white brick) stays data: it is uniform, and a mark on it
+    still differs from it."""
+    clip_all = (img.min(axis=2) >= CLIP).astype(np.uint8)
+    n0, lab0, st0, _ = cv2.connectedComponentsWithStats(clip_all, connectivity=8)
+    small = np.isin(lab0, [i for i in range(1, n0) if st0[i, 4] <= HIGHLIGHT_MAX_PX])
+    clip = small.astype(np.uint8)
     out = cv2.dilate(clip, np.ones((3, 3), np.uint8))
     n, lab, st, _ = cv2.connectedComponentsWithStats(clip, connectivity=8)
     H, W = clip.shape
