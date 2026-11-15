@@ -75,5 +75,9 @@
    -45.0
   ],
   "how": "joints 2-5 of the taught pose the arm first rises to before folding, base joint unchanged (never a low sweep)"
+ },
+ "plate_radius_mm": {
+  "value": null,
+  "how": "radius of the plates (both the same), measured with a ruler; when set, a plate whose rim the scan sees only a short arc of is still placed on (centre fitted with this radius)"
  }
 }

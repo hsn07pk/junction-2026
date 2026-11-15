@@ -112,3 +112,17 @@ def test_scene_plates_found_and_brick_clusters_not_taken_for_plates():
             assert pts and all(math.hypot(p[0] - xy[0], p[1] - xy[1]) <= r - 0.75 * 31.8 + 1e-6 for p in pts), pts
         assert sa.near_plate((187.0, -30.0), sa.plates_seen()["plates"], sv.spec())
         assert not sa.near_plate((262.0, 40.0), sa.plates_seen()["plates"], sv.spec())
+
+
+def test_scene_plate_centre_from_a_short_arc_with_a_known_radius():
+    """With the jaws hiding most of a plate's rim, the plate's centre still comes out when its radius is known."""
+    import scene
+    q_scan = sa.scan_cal()["q_scan"]
+    truth = {"blue": ((187.1, -86.1), 75.0, (200, 90, 20)), "green": ((194.6, 218.3), 75.0, (60, 150, 40))}
+    img = sim.render(q_scan, [], list(truth.values()), seed=6)
+    entry = dict(kin.cell.C["plate_radius_mm"], value=75.0)
+    with mock.patch.dict(kin.cell.C, {"plate_radius_mm": entry}):
+        found = scene.plates(img, q_scan, sv.spec(), ignore=sa.ga.JAW_MASK)
+    for k, (xy, r, _) in truth.items():
+        v = found[k]
+        assert v["reliable"] and math.hypot(v["xy"][0] - xy[0], v["xy"][1] - xy[1]) < 4.0, (k, {a: b for a, b in v.items() if a != "mask"})

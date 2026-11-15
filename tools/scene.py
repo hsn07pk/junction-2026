@@ -145,6 +145,31 @@ def _hue_median(img: np.ndarray, mask: np.ndarray) -> float:
     return (math.degrees(a) + 360.0) % 360.0
 
 
+def _circle_fit_r(xy: np.ndarray, r: float, c0) -> tuple[np.ndarray, float, float]:
+    """Centre of a circle of known radius r through the points (Gauss-Newton from c0, the free fit's centre moved to
+    the side the arc bulges away from), its rms residual and the arc the points cover (degrees)."""
+    c = np.asarray(c0, float)
+    m = xy.mean(axis=0)
+    if np.linalg.norm(c - m) > 3 * r or not np.isfinite(c).all():
+        mid = xy[len(xy) // 2]
+        n = mid - m
+        c = mid - r * n / max(np.linalg.norm(n), 1e-9) if np.linalg.norm(n) > 0 else m
+    for _ in range(30):
+        d = xy - c
+        dist = np.hypot(d[:, 0], d[:, 1])
+        res = dist - r
+        J = -d / np.maximum(dist, 1e-9)[:, None]
+        step = np.linalg.lstsq(J, -res, rcond=None)[0]
+        c = c + step
+        if np.linalg.norm(step) < 1e-4:
+            break
+    d = xy - c
+    rms = float(np.sqrt(np.mean((np.hypot(d[:, 0], d[:, 1]) - r) ** 2)))
+    ang = np.sort(np.arctan2(d[:, 1], d[:, 0]))
+    arc = math.degrees(2 * math.pi - float(np.diff(np.concatenate([ang, ang[:1] + 2 * math.pi])).max()))
+    return c, rms, arc
+
+
 def plates(img: np.ndarray, q, sp: dict, z_mm: float | None = None, ignore: np.ndarray | None = None) -> dict:
     """The blue and the green plate in this image: not-mat regions of plate colour (hue nearer one plate colour than
     the other, chroma well above the mat's), larger than a brick. Each gets its pixel mask, and, when its rim seen
@@ -161,6 +186,7 @@ def plates(img: np.ndarray, q, sp: dict, z_mm: float | None = None, ignore: np.n
     ctr_px = np.array([img.shape[1] / 2.0, img.shape[0] / 2.0])
     unit = brick_area_px(q, wc.pixel_to_mat(q, ctr_px, kin.MAT_Z + sp["height_mm"]), sp)
     r_min = math.sqrt(4.0 / math.pi) * sp["footprint_mm"]  # area of four footprints
+    r_known = kin.cell.get("plate_radius_mm")
     found = {}
     H, W = img.shape[:2]
     near_ignore = cv2.dilate(ignore.astype(np.uint8), np.ones((7, 7), np.uint8)) > 0 \
@@ -193,6 +219,11 @@ def plates(img: np.ndarray, q, sp: dict, z_mm: float | None = None, ignore: np.n
             if r >= r_min and rms <= 0.05 * r and arc >= 90.0:
                 rec.update(reliable=True, xy=[round(float(c[0]), 1), round(float(c[1]), 1)], r_mm=round(r, 1),
                            rms_mm=round(rms, 2), arc_deg=round(arc, 1))
+            elif r_known:  # a short arc fixes the centre when the radius is known
+                c, rms, arc = _circle_fit_r(w, r_known, c)
+                if rms <= 0.05 * r_known and arc >= 30.0:
+                    rec.update(reliable=True, xy=[round(float(c[0]), 1), round(float(c[1]), 1)], r_mm=r_known,
+                               rms_mm=round(rms, 2), arc_deg=round(arc, 1), radius="known")
         if name not in found or rec["px"] > found[name]["px"]:
             found[name] = rec
     return found
