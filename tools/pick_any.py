@@ -44,6 +44,7 @@ COLOUR_CLASSES = {  # hue classes so touching bricks of different colours become
 
 JAW_LIVE_MIN_PX = 1500   # a jaw-red region entering from the bottom edge larger than this is a jaw
 JAW_LIVE_GROW_PX = 15    # and is widened by this much (its shaded edge is less red)
+JAW_LIVE_REACH_PX = 40   # how far a loose jaw moves from the last jaw check's mask between checks
 
 
 def jaw_mask(img, hsv=None):
@@ -59,6 +60,9 @@ def jaw_mask(img, hsv=None):
     keep = [i for i in range(1, n) if st[i, 4] > JAW_LIVE_MIN_PX and st[i, 1] + st[i, 3] >= h - 3]
     live = np.isin(lab, keep) if keep else np.zeros(red.shape, bool)
     live = cv2.dilate(live.astype(np.uint8), np.ones((JAW_LIVE_GROW_PX, JAW_LIVE_GROW_PX), np.uint8)) > 0
+    if static.any():  # the jaws move at most this far from where the last jaw check saw them: a red brick touching a
+        # jaw stays a brick beyond that
+        live &= cv2.dilate(static.astype(np.uint8), np.ones((2 * JAW_LIVE_REACH_PX + 1,) * 2, np.uint8)) > 0
     return live | static
 
 
