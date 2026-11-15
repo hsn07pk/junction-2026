@@ -686,6 +686,15 @@ def hover_over(xy, yaw, q_ref):
     return kin.ik(float(xy[0]), float(xy[1]), kin.MAT_Z + pa.HOVER_DZ, psi, q_ref)
 
 
+def decided_good(have):
+    """The faces surveyed so far already make this measured 2x2 brick GOOD under the decision rule (enough clean
+    faces, none defective): no second survey at the spot is needed."""
+    shape = survey_shape()
+    if shape[0] != "2x2":
+        return False
+    return sl.decide_faces({}, shape, have, srv.FACES)[1] == "GOOD"
+
+
 def merged_faces():
     """Face verdicts of this episode for the decision. Each survey judged the brick as it lay then, and face names of
     two surveys need not name the same physical face (the brick may be gripped turned), so one survey's faces are
@@ -958,7 +967,7 @@ def cycle(k):
         return
     have = merged_faces()
     if survey_shape()[0] != "not_2x2" and not any(r.get("verdict") == "DEFECT" for r in have.values()) and \
-            any(have.get(f, {}).get("verdict") != "CLEAN" for f in srv.FACES):
+            any(have.get(f, {}).get("verdict") != "CLEAN" for f in srv.FACES) and not decided_good(have):
         surv, ok2 = survey_inspect(k)
         EP["survey_spot"] = surv
         if not ok2:
@@ -1073,7 +1082,7 @@ def finish_held():
     if not plate:
         have = merged_faces()
         if survey_shape()[0] != "not_2x2" and not any(r.get("verdict") == "DEFECT" for r in have.values()) and \
-                any(have.get(f, {}).get("verdict") != "CLEAN" for f in srv.FACES):
+                any(have.get(f, {}).get("verdict") != "CLEAN" for f in srv.FACES) and not decided_good(have):
             surv, ok2 = survey_inspect(EP.get("episode", 0))
             EP["survey_spot"] = surv
             if not ok2:
