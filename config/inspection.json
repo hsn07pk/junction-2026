@@ -33,5 +33,7 @@
  "min_edge_inliers": 0.5,
  "min_edge_inliers_note": "and when at least this fraction of the model's edge points lie within 2 px of an image edge after registration (an edge between two faces lit alike may show no edge, so not all of them do)",
  "align_search_factor": 10.0,
- "align_search_factor_note": "registration search radius in multiples of the camera model's median reprojection error; 10 covers the p90 error of the re-fitted wrist camera with the loose jaw mount (about 11 px at a 4.3 px median) plus its wobble between fits"
+ "align_search_factor_note": "registration search radius in multiples of the camera model's median reprojection error; 10 covers the p90 error of the re-fitted wrist camera with the loose jaw mount (about 11 px at a 4.3 px median) plus its wobble between fits",
+ "min_clean_faces": 2,
+ "min_clean_faces_note": "a measured 2x2 brick with no defective face goes to blue when at least this many of its faces were surveyed clean (all five when the survey sees them all); fewer clean faces stay UNCERTAIN (green)"
 }

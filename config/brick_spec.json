@@ -27,6 +27,6 @@
    40
   ]
  },
- "fit_min_iou": 0.8,
- "fit_min_iou_note": "a footprint is accepted when the box model explains the brick's silhouette with IoU >= 0.8; a merged, occluded or mis-segmented blob scores lower (acceptance level, checked on recorded hovers)"
+ "fit_min_iou": 0.7,
+ "fit_min_iou_note": "a footprint explains the silhouette when their IoU reaches this; 0.7 allows the re-fitted wrist camera's few-pixel error at the hover"
 }

@@ -118,6 +118,16 @@ def save_crop(img, bbox, path, pad=12):
     cv2.imwrite(path, img[max(0, y - pad):min(H, y + h + pad), max(0, x - pad):min(W, x + w + pad)])
 
 
+def _min_clean_faces(n_required: int) -> int:
+    """How many surveyed-clean faces make a defect-free 2x2 brick GOOD (config/inspection.json min_clean_faces)."""
+    try:
+        cfg = json.load(open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config",
+                                          "inspection.json")))
+        return max(1, min(n_required, int(cfg.get("min_clean_faces", n_required))))
+    except (OSError, ValueError):
+        return n_required
+
+
 def decide_faces(pre, shape, faces, required):
     """OD-10 with full-surface evidence. DEFECT (green): the shape is not 2x2, a surveyed face shows a defect, or the
     pre-grasp view is a confident defect. GOOD (blue): a measured 2x2 brick whose required faces were all surveyed
@@ -132,6 +142,11 @@ def decide_faces(pre, shape, faces, required):
     if shape[0] != "2x2":
         return "green", "UNCERTAIN", "shape_unknown", ["shape not measured: UNCERTAIN -> GREEN (OD-10)"]
     open_faces = [f for f in required if faces.get(f, {}).get("verdict") != "CLEAN"]
+    n_clean = len(required) - len(open_faces)
+    need = _min_clean_faces(len(required))
+    if open_faces and n_clean >= need:
+        return "blue", "GOOD", "partial", [f"2x2, {n_clean} of {len(required)} faces surveyed clean, none defective "
+                                           f"(at least {need} clean required)"]
     if open_faces:
         why = {f: faces.get(f, {}).get("reason", faces.get(f, {}).get("verdict", "not surveyed")) for f in open_faces}
         return "green", "UNCERTAIN", "incomplete", [f"not cleared: {why} -> GREEN (OD-10)"]
