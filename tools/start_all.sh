@@ -5,6 +5,7 @@
 #
 #   bash app/tools/start_all.sh                start everything, new run, 150 cycles
 #   bash .../start_all.sh --run NAME --n 150 --start 1 --profile safe|fast    choose the run
+#   bash .../start_all.sh --run cal_b1 --n 3 --calibrate b1 --truth GOOD      calibration run of one brick
 #   bash .../start_all.sh --no-loop                                           cameras, watchdog, motion server only
 #   bash .../start_all.sh --status                                            show what is running
 # Stop everything cleanly with: bash app/tools/stop_all.sh
@@ -17,13 +18,15 @@ say() { echo "$(date -u +%H:%M:%SZ) $*"; }
 alive() { [ -f "$1" ] && kill -0 "$(cat "$1")" 2>/dev/null; }
 age() { echo $(( $(date +%s) - $(stat -c %Y "$1" 2>/dev/null || echo 0) )); }
 
-RUN="any_$(date -u +%Y%m%d_%H%M)"; N=150; START=1; PROFILE=safe; LOOP=1; STATUS=0
+RUN="any_$(date -u +%Y%m%d_%H%M)"; N=150; START=1; PROFILE=safe; LOOP=1; STATUS=0; CALIBRATE=""; TRUTH=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --run) RUN=$2; shift 2 ;;
     --n) N=$2; shift 2 ;;
     --start) START=$2; shift 2 ;;
     --profile) PROFILE=$2; shift 2 ;;
+    --calibrate) CALIBRATE=$2; shift 2 ;;
+    --truth) TRUTH=$2; shift 2 ;;
     --no-loop) LOOP=0; shift ;;
     --status) STATUS=1; shift ;;
     *) echo "unknown option $1"; exit 64 ;;
@@ -102,7 +105,7 @@ if [ "$LOOP" = 1 ]; then
   else
     rm -f run/sort_stop run/sort_pause
     echo "$RUN" > run/sort_run_name
-    (cd app/tools && nohup $PY -u -B sort_any.py --run "$RUN" --n "$N" --start "$START" --profile "$PROFILE" ${COLLECT:+--collect "$COLLECT"} \
+    (cd app/tools && nohup $PY -u -B sort_any.py --run "$RUN" --n "$N" --start "$START" --profile "$PROFILE" ${CALIBRATE:+--calibrate "$CALIBRATE" --truth "$TRUTH"} \
         >> "$R/logs/sort_any_$RUN.out" 2>&1 & echo $! > "$R/run/sort_any.pid")
     sleep 3
     alive run/sort_any.pid || { say "sort loop exited at start: see logs/sort_any_$RUN.out"; tail -5 "logs/sort_any_$RUN.out"; exit 10; }

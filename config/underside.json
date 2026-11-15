@@ -1,0 +1,17 @@
+{
+ "note": "Underside inspection (tools/underside.py). Off until the close-camera model (closecam.py) and the underside model (underside.py --fit) are fitted on the cell and it is switched on here; then the bottom is a required face.",
+ "enabled": false,
+ "radius_mm": [220, 260, 300, 340],
+ "radius_mm_note": "TCP distances from the pan axis tried for the presentation pose (toward the close camera)",
+ "height_mm": [90, 130, 170],
+ "height_mm_note": "TCP heights above the mat tried; the brick is lifted to the lowest before the turn",
+ "max_up_deg": 30,
+ "max_up_deg_note": "the bottom is not turned more than this above horizontal",
+ "min_cos": 0.85,
+ "min_cos_note": "the bottom must face the camera at least this squarely",
+ "min_iou": 0.6,
+ "min_iou_note": "the found bottom must overlap the camera model's prediction at least this much",
+ "speed": 30,
+ "margin": 2.0,
+ "margin_note": "chroma limit = this times the largest chroma difference of a clean bottom"
+}

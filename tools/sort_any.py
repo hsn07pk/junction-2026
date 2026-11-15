@@ -29,6 +29,8 @@ import sort_loop as sl  # noqa: E402  (close_verdict, decide, skin/hands helpers
 import defects as dfx  # noqa: E402
 import survey as srv  # noqa: E402
 import scene  # noqa: E402
+import underside as us  # noqa: E402
+import closecam as cc  # noqa: E402
 from paths import APP  # noqa: E402
 
 R = ga.R
@@ -618,6 +620,30 @@ def survey_inspect(k, roll=0.0, repick=True):
     return out, ok
 
 
+def underside_record():
+    """Show the held brick's bottom to the close camera (underside.inspect), keep the frame, record the result."""
+    try:
+        rec = us.inspect(ga, srv.spec(), log)
+    except Exception as e:  # noqa: BLE001
+        rec = {"verdict": "UNCERTAIN", "reason": f"underside inspection failed: {e!r}"}
+    img = rec.pop("_img", None)
+    if img is not None:
+        cv2.imwrite(f"{ga.OUT}/underside.jpg", img)
+    EP["underside"] = rec
+    return rec
+
+
+def decide_now(shape):
+    """OD-10 on this episode's evidence: the surveyed faces, and the bottom when the underside inspection is on (it
+    runs only when nothing has decided green already)."""
+    faces, required = merged_faces(), tuple(srv.FACES)
+    if us.enabled():
+        required += ("bottom",)
+        if shape[0] == "2x2" and not any(r.get("verdict") == "DEFECT" for r in faces.values()):
+            faces["bottom"] = underside_record()
+    return sl.decide_faces({}, shape, faces, required)
+
+
 def hover_over(xy, yaw, q_ref):
     """Hover pose (top-down IK) above a brick at xy with the jaws along its faces: of the four yaws that do that, the
     one nearest the reference pose's."""
@@ -905,7 +931,7 @@ def cycle(k):
     colour = EP.get("target_colour") or "unknown"
     shape = survey_shape()
     EP["shape_survey"] = list(shape)
-    plate, label, conf, reasons = sl.decide_faces({}, shape, merged_faces(), srv.FACES)
+    plate, label, conf, reasons = decide_now(shape)
     EP.update({"colour": colour, "plate": plate, "label": label, "decision_conf": conf, "shape": shape[0],
                "decision_reasons": reasons, "label_source": "survey", "needs_review": conf != "confident",
                "task": f"move the {colour} brick to the {plate} plate"})
@@ -935,6 +961,8 @@ def calibration_rest(k, T, t0):
     span = min(hi_b[4] - q[4], q[4] - lo_b[4], 30.0)
     roll = float(np.random.default_rng().uniform(-span, span)) if span > 0 else 0.0
     t1 = time.time()
+    if cc.load() is not None:  # measure the bottom too (its model is fitted from these records)
+        underside_record()
     surv, _ = survey_inspect(k, roll=roll, repick=False)
     EP["survey_spot"] = surv
     T["inspect_s"] = round(time.time() - t1, 1)
@@ -1013,7 +1041,7 @@ def finish_held():
                 return None
         shape = survey_shape()
         EP["shape_survey"] = list(shape)
-        plate, label, conf, reasons = sl.decide_faces({}, shape, merged_faces(), srv.FACES)
+        plate, label, conf, reasons = decide_now(shape)
         colour = EP.get("target_colour") or "unknown"
         EP.update({"plate": plate, "label": label, "decision_conf": conf, "colour": colour, "shape": shape[0],
                    "decision_reasons": reasons, "label_source": "survey", "needs_review": conf != "confident",

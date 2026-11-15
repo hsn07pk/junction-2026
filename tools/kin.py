@@ -97,3 +97,46 @@ def ik_rel(q, d_mm, dyaw=0.0, tol_mm=1.0, tol_rot=0.03):
     if np.any(np.abs(n) > 99):
         return None
     return [round(float(v), 2) for v in n]
+
+
+def ik_dir(p_mm, a_dir, q_ref, tol_mm=1.5, tol_dir=0.03, iters=150):
+    """IK for the TCP at p_mm (base frame) with the tool's approach axis (tool z) along a_dir, wrist roll kept from
+    q_ref (the roll turns about the approach axis and changes neither). On a 5-axis arm the approach axis can only
+    lie in the vertical plane through the pan axis and the TCP: a_dir off that plane has no exact solution and the
+    result is None. Damped least squares on the first four joints. Returns 5 normalised joints or None."""
+    q = np.asarray(CAL.rad_from_norm(list(q_ref)[:5]), float)
+    pt = np.asarray(p_mm, float) / 1000.0
+    at = np.asarray(a_dir, float) / np.linalg.norm(a_dir)
+
+    def err(qq):
+        T = CH.fk(qq)
+        return np.concatenate([T[:3, 3] - pt, 0.05 * (T[:3, 2] - at)])
+
+    lam = 0.01
+    e = err(q)
+    for _ in range(iters):
+        J = np.zeros((6, 4))
+        for i in range(4):
+            dq = np.zeros(5)
+            dq[i] = 1e-6
+            J[:, i] = (err(q + dq) - e) / 1e-6
+        step = -J.T @ np.linalg.solve(J @ J.T + lam * lam * np.eye(6), e)
+        m = float(np.max(np.abs(step)))
+        if m > 0.15:
+            step *= 0.15 / m
+        qn = q.copy()
+        qn[:4] = np.clip(q[:4] + step, LO[:4], HI[:4])
+        en = err(qn)
+        if float(en @ en) < float(e @ e):
+            q, e, lam = qn, en, max(lam / 2, 1e-4)
+        else:
+            lam *= 4
+        if np.linalg.norm(e[:3]) * 1000 < 0.05 and np.linalg.norm(e[3:]) / 0.05 < 1e-3:
+            break
+    T = CH.fk(q)
+    if np.linalg.norm(T[:3, 3] - pt) * 1000 > tol_mm or np.linalg.norm(T[:3, 2] - at) > tol_dir:
+        return None
+    n = CAL.norm_from_rad(q)
+    if np.any(np.abs(n) > 99):
+        return None
+    return [round(float(v), 2) for v in n]

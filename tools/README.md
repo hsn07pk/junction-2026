@@ -1,49 +1,46 @@
-# app/tools — SO-101 DUPLO sorter runtime
+# tools: the sorter's runtime, calibration and tests
 
-Start here: `docs/PICK-ANYWHERE.md` covers how the loop works, how to run, stop and resume it, the safety rules
-and the failure log.
-
-## Runtime (used by the pick-anywhere loop)
+## Runtime
 
 | module | role |
 |---|---|
-| `sort_any.py` | **The loop.** Scan → candidates → approach (servo) → grasp → inspect → decide → place, with recording, recovery and carry-over. CLI: `--run --n --start --speed --profile {safe,fast}` |
-| `pick_any.py` | Wrist-camera perception and motion helpers: colour-class `blobs`, `find` (colour lock), `servo`, `align_yaw`, `move_rel`, size→height |
-| `sort_loop.py` | Shared helpers: `hands_seen`, `wait_clear`, `close_verdict`, `decide`, `save_crop`, `run_fast`. Its own `cycle`/`main` is the legacy spot-cell loop |
-| `grasp_auto.py` | Motion-server client (`cmd`, `move`, `state`), camera frames (`fresh`, `snap`), `TARGET_PX`, static jaw mask |
-| `kin.py` | URDF forward kinematics and differential IK (`ik_rel`), `MAT_Z`, wrist Jacobian `m_base` |
-| `handdet.py` | Hand detector shared by the watchdog and the loop's clear check |
-| `hand_watch.py` | Hand watchdog process (writes `run/estop`) |
-| `motion_server.py` | The only process that talks to the follower: compensated moves, 30 Hz joint logging, e-stop hold |
-| `mcmd.py`, `mseq.py` | Send one command, or a named pose sequence, to the motion server |
-| `jaw_check.py` | Check-only jaw position test (run at start and every 5 cycles) |
-| `monitor_cams.sh`, `wrist_rec.sh` | Continuous recorders: top/close MKV and wrist MJPEG segments, absolute timestamps |
-| `arm_free_watch.sh` | Read-only: writes `run/arm_state` (FREE or BUSY) for the follower and RealSense nodes |
+| `sort_any.py` | The loop: scan, candidates, approach (servo), survey, grasp, decide, place; recovery, carry-over, calibration runs. CLI: `--run --n --start --speed --profile {safe,fast} --calibrate ID --truth GOOD,DEFECT` |
+| `survey.py` | Survey views (library at any brick pose), brick measurement by box fitting, silhouettes, alignment |
+| `scene.py` | Mat, plates (colour and shape), free spots, isolation of a brick on the scan frame |
+| `defects.py` | Surface defect test from all survey views (registration, face textures, a-contrario windows) |
+| `underside.py`, `closecam.py` | Underside inspection with the close camera; close camera model from the jaws |
+| `pick_any.py` | Wrist-camera blobs, colour lock, servo, yaw alignment, relative moves |
+| `sort_loop.py` | Shared helpers: workspace-clear rule, loop log, crops, the OD-10 decision (`decide_faces`) |
+| `grasp_auto.py` | Motion-server client, live camera frames, snapshots, gripper settle, jaw mask and servo target |
+| `kin.py`, `cell.py` | URDF kinematics: top-down IK, differential IK, IK with a pointing direction; cell calibration values |
+| `handdet.py`, `hand_watch.py` | Hand detector (model in `config/hand_model.json`) and the watchdog process |
+| `motion_server.py`, `mcmd.py`, `mseq.py` | The only process that talks to the arm; one command; a pose sequence |
+| `jaw_check.py` | Jaw check and static jaw mask |
+| `rest.py` | Fold to the taught rest pose (used by the stop scripts) |
+| `start_all.sh`, `stop_all.sh`, `park_release.sh` | Start the stack; stop it; fold, release and free the cameras |
+| `monitor_cams.sh`, `wrist_rec.sh` | Continuous recorders with absolute timestamps |
 
-## Calibration and measurement tools
+## Calibration (see ../docs/CALIBRATION.md)
 
-- `scan_calib.py`, `calib_M.py`, `calib_wrist.py`, `jaw_calib.py`: build the calibration JSONs described in
-  `docs/PICK-ANYWHERE.md`.
-- `rs_*.py`, `jprobe.py`, `servo_step.py`, `wrist_brick.py`: RealSense depth and jaw measurements (I-59).
+| tool | writes |
+|---|---|
+| `calibrate_defects.py` | `config/defect_model.json` from labelled surveys (hold-out by physical brick) |
+| `calib_wristcam.py` | `eyeinhand/wrist_cam_model.json` from surveys (bundle adjustment, k-fold check) |
+| `plan_survey.py` | `config/survey_plan.json`, `config/survey_library.json` |
+| `closecam.py` | `config/close_cam_model.json` from jaw pixels and FK |
+| `underside.py --fit` | `config/underside_model.json` |
+| `fit_handdet.py` | `config/hand_model.json` from labelled frames (never misses a labelled hand) |
+| `jaw_check.py` | `jaw_calib.json`, `wrist_jaw_mask.png` |
 
-## Review and offline tools
+## Tests
 
-- `review_ep.py`: contact sheet per episode.
-- `peek.py`: three-camera snapshot.
-- `studio_sessions.py`: lists Studio runtime sessions.
-- `../eyeinhand/`: wrist camera model fitted from recordings (offline; not used by the loop yet).
-- `tests/`: replay regression tests and fixtures (`tests/fixtures/hand_labels.csv` holds the labelled e-stop
-  images).
-- `work/lint/` at the repo root: stdlib static checks (`undef.py`, `attrs.py`) and `smoke_offline.py`.
-
-## Superseded (kept for reference)
-
-- `motion_server_v1.py`.
-- The spot-cell `cycle`/`main` in `sort_loop.py`.
-- Backups of every edited file are in `run/bak_<module>_<UTC hhmm>.py`.
+`python -I -B tests/run_tests.py`. `tests/sim_scene.py` renders the wrist camera's view (studs, tape, a lamp's
+reflection, shadows, blur, exposure, noise, tone curve, JPEG) through the camera model, so the survey, the defect test,
+its calibration and the camera self-calibration run end to end offline. Replays of recorded frames skip when the
+frames are absent.
 
 ## Conventions
 
-- Joints are normalized SO-101 units: body −100..100, gripper 0..100. Lengths are mm in the base frame.
+- Joints are normalised SO-101 units: body -100..100, gripper 0..100. Lengths are mm in the base frame.
 - Every module that moves the arm goes through the motion server. Restart processes only by their pid files.
-- Every change carries a UTC stamp and its reason in a comment (the incident it fixes).
+- No brick or tape colour appears in the code; measured and fitted values live in `config/` with how they were obtained.
