@@ -39,6 +39,8 @@ OUT_W, OUT_H = 1920, 1080
 MAIN_H = 960                      # picture area; the caption bar takes the rest
 CAP_H = OUT_H - MAIN_H            # 120 px caption bar
 INSET_W, INSET_H = 384, 288
+MAIN_W = 1280                     # top view panel (4:3 at the full picture height); the side views share the rest
+SIDE_W, SIDE_H = OUT_W - 1280, MAIN_H // 2
 INSET_GAP = 16
 MARGIN = 24
 GAP_TOL_S = 1.0
@@ -482,27 +484,40 @@ def speed_label(speed):
     return "REAL TIME" if abs(speed - 1.0) < 1e-9 else "TIME-LAPSE x%g" % speed
 
 
-def compose(base, fr, elapsed, label):
-    frame = base.copy()
-    if fr["top"] is not None:
-        tv = fit(fr["top"], OUT_W, MAIN_H)
-        h, w = tv.shape[:2]
-        y0, x0 = (MAIN_H - h) // 2, (OUT_W - w) // 2
-        frame[y0:y0 + h, x0:x0 + w] = tv
+def _tag(frame, x, y, text):
+    (tw, th), _ = cv2.getTextSize(text, FONT, 0.75, 2)
+    over = frame[y:y + th + 18, x:x + tw + 24].astype(np.float32)
+    frame[y:y + th + 18, x:x + tw + 24] = (0.35 * over).astype(np.uint8)
+    cv2.putText(frame, text, (x + 12, y + th + 8), FONT, 0.75, WHITE, 2, cv2.LINE_AA)
+
+
+def _panel(frame, img, x0, y0, w, h, name, missing):
+    """One camera in its own panel, fitted and centred; a quiet label in the corner; a note when not recorded."""
+    if img is not None:
+        v = fit(img, w, h)
+        vh, vw = v.shape[:2]
+        oy, ox = y0 + (h - vh) // 2, x0 + (w - vw) // 2
+        frame[oy:oy + vh, ox:ox + vw] = v
     else:
-        s, t = fit_text("TOP VIEW NOT RECORDED", OUT_W - 200, 1.6, 3)
-        (tw, _), _ = cv2.getTextSize(t, FONT, s, 3)
-        cv2.putText(frame, t, ((OUT_W - tw) // 2, MAIN_H // 2), FONT, s, GREY, 3, cv2.LINE_AA)
-    x, y = OUT_W - INSET_W - MARGIN, MARGIN
-    for cam in ("wrist", "close"):
-        if fr[cam] is not None:
-            ins = cv2.resize(fr[cam], (INSET_W, INSET_H), interpolation=cv2.INTER_AREA)
-            frame[y:y + INSET_H, x:x + INSET_W] = ins
-            cv2.rectangle(frame, (x, y), (x + INSET_W - 1, y + INSET_H - 1), WHITE, 2)
-            cv2.rectangle(frame, (x, y), (x + 96, y + 30), (0, 0, 0), -1)
-            cv2.putText(frame, cam.upper(), (x + 8, y + 22), FONT, 0.7, WHITE, 2, cv2.LINE_AA)
-        y += INSET_H + INSET_GAP
-    cv2.putText(frame, "%s   +%.1f s" % (label, elapsed), (30, 50), FONT, 1.0, WHITE, 2, cv2.LINE_AA)
+        s, t = fit_text(missing, w - 60, 1.0, 2)
+        (tw, _), _ = cv2.getTextSize(t, FONT, s, 2)
+        cv2.putText(frame, t, (x0 + (w - tw) // 2, y0 + h // 2), FONT, s, GREY, 2, cv2.LINE_AA)
+    _tag(frame, x0 + 14, y0 + 14, name)
+
+
+def compose(base, fr, elapsed, label):
+    """Three views side by side, none covering another: the top view large on the left, the wrist camera (what the
+    gripper sees) and the close camera (the inspection close-up) stacked on the right; thin dividers between them."""
+    frame = base.copy()
+    frame[:MAIN_H] = BG
+    _panel(frame, fr["top"], 0, 0, MAIN_W, MAIN_H, "TOP CAMERA", "TOP VIEW NOT RECORDED")
+    _panel(frame, fr["wrist"], MAIN_W, 0, SIDE_W, SIDE_H, "WRIST CAMERA", "WRIST VIEW NOT RECORDED")
+    _panel(frame, fr["close"], MAIN_W, SIDE_H, SIDE_W, MAIN_H - SIDE_H, "CLOSE CAMERA", "CLOSE VIEW NOT RECORDED")
+    cv2.line(frame, (MAIN_W, 0), (MAIN_W, MAIN_H - 1), BG, 4)
+    cv2.line(frame, (MAIN_W, SIDE_H), (OUT_W - 1, SIDE_H), BG, 4)
+    t = "%s   +%.1f s" % (label, elapsed)
+    (tw, _), _ = cv2.getTextSize(t, FONT, 0.75, 2)
+    _tag(frame, MAIN_W - tw - 40, 14, t)
     return frame
 
 
@@ -518,9 +533,10 @@ def make_card(lines):
 
 def title_card(run_name, n, first, last):
     return make_card([
-        ("SO-101 DUPLO SORTER", 2.4, WHITE, 430, 4),
-        ("Run " + run_name, 1.1, GREY, 520, 2),
-        ("%d episodes, recorded %s to %s" % (n, utc(first), utc(last)), 0.9, GREY, 600, 2),
+        ("SO-101 DUPLO QUALITY SORTER", 2.2, WHITE, 400, 4),
+        ("2x2 brick without a defect: BLUE plate.   Any defect, other shape or unsure: GREEN plate.", 1.0, GREY, 490, 2),
+        ("Each brick is measured and every face inspected from several wrist-camera angles", 0.9, GREY, 550, 2),
+        ("Run %s: %d bricks, recorded %s to %s" % (run_name, n, utc(first), utc(last)), 0.8, GREY, 640, 2),
     ])
 
 
