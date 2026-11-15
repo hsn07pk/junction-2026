@@ -130,7 +130,7 @@ def move_rel(q, g, d, speed=6.0, comp=True, clamp=None):
     qn = kin.ik_rel(q, d)
     if qn is None:
         return None
-    c = {"op": "move", "q": qn + [g], "speed": speed, "comp": comp}
+    c = {"op": "move", "q": qn + [g], "speed": speed, "comp": comp, "accel": ga.ACCEL}
     if clamp is not None:
         c["comp_clamp"] = clamp
     st = ga.cmd(c)

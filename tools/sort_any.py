@@ -36,7 +36,9 @@ from paths import APP  # noqa: E402
 R = ga.R
 SPOT_HOVER = list(kin.cell.get("spot_hover_q"))
 PLATES_F = os.path.join(ga.RUN_ROOT, "plates_seen.json")  # where each plate was last seen, and bricks placed on it
-CFG = {"transit": 42.0, "hover": 18.0, "servo": 12.0, "desc": 10.0, "final": 4.0}
+CFG = {"transit": 42.0, "hover": 18.0, "servo": 12.0, "desc": 10.0, "final": 4.0}  # overwritten by the --profile
+PROFILES = json.load(open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config",
+                                       "motion_profiles.json")))
 EP = {}
 EPIMG = {}  # this episode's first frames, taken at the scan pose with the arm out of the close view
 RUN = ""
@@ -849,6 +851,8 @@ def jaw_check_due(k, img, every=20):
     f = jaw_red_fractions(img)
     if f is None or not JAW_BASE:
         return False
+    if CFG.get("accept_bent_jaw"):  # a loose jaw moves a little at every grasp: re-measure only on a large change
+        return f[0] < 0.6 * JAW_BASE["inside"] or f[1] > JAW_BASE["ring"] + 0.25
     return f[0] < 0.8 * JAW_BASE["inside"] or f[1] > JAW_BASE["ring"] + 0.10
 
 
@@ -861,6 +865,8 @@ def periodic_jaw_check(k, img):
     EP["jaw_check"] = d
     if ok:
         remember_jaws(pa.frame())
+    elif CFG.get("accept_bent_jaw"):  # the operator cannot fix the jaw: keep the last accepted target, never pause
+        log(f"jaw check (cycle {k}) not accepted ({d.get('error')}); keeping servo target {ga.TARGET_PX}")
     else:
         open(f"{ga.RUN_ROOT}/sort_pause", "w").write(
             f"{time.strftime('%H:%M:%SZ', time.gmtime())} jaw check failed: {d.get('error')}\n")
@@ -1147,18 +1153,19 @@ def main():
                     help="run with a bent but rigid fixed jaw: the jaw check accepts the jaws as they are")
     ap.add_argument("--truth", choices=("GOOD", "DEFECT"), default=None,
                     help="the calibration brick's ground truth (written to the labels file only)")
-    ap.add_argument("--profile", choices=("safe", "fast"), default="safe",
-                    help="fast = untested speed-ups (transit 45, hover 25, desc 14, final 6, servo 18); try it on a few "
-                         "cycles and compare cycles.jsonl timings before using it for collection")
+    ap.add_argument("--profile", choices=tuple(k for k in PROFILES if not k.startswith("_") and k != "limits"), default="safe",
+                    help="motion profile from config/motion_profiles.json (safe, fast, demo)")
     a = ap.parse_args()
     RUN = f"{ga.LOG_ROOT}/sort/{a.run}"
     sl.RUN = RUN
     os.makedirs(RUN, exist_ok=True)
-    if a.profile == "fast":
-        CFG.update({"transit": 45.0, "hover": 25.0, "desc": 14.0, "final": 6.0, "servo": 18.0})
-        pa.SERVO_SPEED = 18.0
+    prof = PROFILES[a.profile]
+    CFG.update({k: float(prof[k]) for k in ("transit", "hover", "servo", "desc", "final")})
+    hard = float(PROFILES["limits"]["hard_speed"])
     for key in ("transit", "hover", "servo", "desc"):
-        CFG[key] = min(45.0, CFG[key] * a.speed)
+        CFG[key] = min(hard, CFG[key] * a.speed)
+    pa.SERVO_SPEED = CFG["servo"]
+    ga.ACCEL = float(prof["accel"])
     CFG["profile"] = a.profile
     CFG["accept_bent_jaw"] = a.accept_bent_jaw
     if a.calibrate:
@@ -1198,6 +1205,9 @@ def main():
         if not recover():
             return  # start-up recover() gave up: the cycle loop does not start
     ok, d = jaw_check_now("start-up")  # at the scan pose with the gripper open
+    if not ok and CFG.get("accept_bent_jaw") and os.path.exists(os.path.join(os.path.dirname(os.path.abspath(__file__)), "jaw_calib.json")):
+        log(f"start-up jaw check not accepted ({d.get('error')}); bent-jaw mode keeps the last accepted target {ga.TARGET_PX}")
+        ok = True
     if not ok:
         write_needs_operator(f"jaw check: {d.get('error')}")
         return

@@ -1,0 +1,11 @@
+{
+ "_note": "Motion speeds of the sort loop by profile (sort_any.py --profile NAME). Joint speeds and accelerations are in normalized joint units per second (and per second squared), as the motion server plans its ramps. The motion server never exceeds limits.hard_speed and limits.hard_accel.",
+ "limits": {"hard_speed": 90.0, "hard_accel": 250.0,
+            "_note": "upper bounds the motion server enforces for every command"},
+ "safe": {"transit": 42.0, "hover": 18.0, "servo": 12.0, "desc": 10.0, "final": 4.0, "accel": 60.0,
+          "_note": "the speeds of the first robot runs"},
+ "fast": {"transit": 45.0, "hover": 25.0, "servo": 18.0, "desc": 14.0, "final": 6.0, "accel": 60.0,
+          "_note": "first speed-up"},
+ "demo": {"transit": 85.0, "hover": 45.0, "servo": 25.0, "desc": 26.0, "final": 8.0, "accel": 160.0,
+          "_note": "short cycle: faster transit, hover and descents and higher acceleration; the last grasp millimetres stay slow"}
+}

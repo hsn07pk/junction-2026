@@ -35,6 +35,7 @@ PRIOR = {"cx": 10.0, "cy": 10.0, "k1": 0.03}  # sd of the intrinsic priors aroun
 MIN_OBS = 12
 MAX_MEDIAN_PX = 4.0       # in-sample
 MAX_HELDOUT_PX = 6.0      # 5-fold, by view
+OUTLIER_PX = 8.0          # views with a larger residual after the first fit are checked against 3 x the median
 
 
 # ---------------------------------------------------------------- model
@@ -164,8 +165,19 @@ def heldout_errors(obs, M, z, k=5):
 
 
 def evaluate(obs: list, M: dict):
+    """Fit, drop views whose blob was contaminated (residual above max(OUTLIER_PX, 3 x median): the brick blob merged
+    with a jaw or was cut by the image border), refit on the rest, then score in-sample and held-out."""
     z = float(M["z_top_mm"])
     x, dq, th0 = fit(obs, M, z)
+    e_all = pixel_errors(x, obs, dq, z)
+    lim = max(OUTLIER_PX, 3.0 * float(np.median(e_all)))
+    keep = [o for o, e in zip(obs, e_all) if e <= lim]
+    dropped = [o.get("tag") for o, e in zip(obs, e_all) if e > lim]
+    if len(keep) >= MIN_OBS and dropped:
+        obs = keep
+        x, dq, th0 = fit(obs, M, z)
+    else:
+        dropped = []
     e_in = pixel_errors(x, obs, dq, z)
     e_old = pixel_errors(np.concatenate([th0, _fit_brick_only(th0, obs, dq, z)]), obs, dq, z)
     e_ho = heldout_errors(obs, M, z)
@@ -175,7 +187,8 @@ def evaluate(obs: list, M: dict):
             _, depth = project(x[:10], o["q"], np.array([x[10], x[11], z]), dq)
             if depth > 0:
                 scale.append(float(o["short"]) / (x[0] * BRICK_MM / depth))
-    return x, dq, {"n_obs": len(obs), "median_px": float(np.median(e_in)), "p90_px": float(np.percentile(e_in, 90)),
+    return x, dq, {"n_obs": len(obs), "dropped_views": dropped, "median_px": float(np.median(e_in)),
+                   "p90_px": float(np.percentile(e_in, 90)),
                    "heldout_median_px": float(np.median(e_ho)) if e_ho.size else None,
                    "heldout_p90_px": float(np.percentile(e_ho, 90)) if e_ho.size else None,
                    "old_model_median_px": float(np.median(e_old)), "brick_xy_mm": [round(float(v), 1) for v in x[10:12]],

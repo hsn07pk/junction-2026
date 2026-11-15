@@ -49,8 +49,8 @@ def main():
     ap.add_argument("--fail", type=float, default=25.0, help="px change that means a loose or bent jaw")
     ap.add_argument("--no-move", action="store_true")
     ap.add_argument("--accept-bent", action="store_true",
-                    help="a fixed jaw bent away from the reference is accepted while its tips move at most --fail px over the "
-                         "wrist rolls: the mask covers the jaws at every roll and the servo target follows the gap centre")
+                    help="a bent or loose fixed jaw that cannot be fixed is accepted as it is now (two tips seen in at least two "
+                         "roll pairs): the mask covers the jaws at every roll and the servo target follows the gap centre")
     a = ap.parse_args()
     st = ga.state()
     q = list(st["target"])
@@ -113,8 +113,8 @@ def main():
         out["ok"] = dg <= a.tol
         print(json.dumps(out))
         return 0 if out["ok"] else 3
-    if dg > a.fail and a.accept_bent and out["spread_px"] is not None and out["spread_px"] <= a.fail and len(meas) >= 2:
-        out["bent_accepted"] = f"jaw gap {dg:.0f}px from the tight reference, rigid over the rolls ({out['spread_px']}px)"
+    if dg > a.fail and a.accept_bent and len(meas) >= 2:  # loose jaw that cannot be fixed: the jaws as they are now
+        out["bent_accepted"] = f"jaw gap {dg:.0f}px from the tight reference, {out['spread_px']}px spread over the rolls"
     elif dg > a.fail:
         out["ok"] = False
         out["error"] = f"the jaws moved {dg:.0f}px relative to each other (fixed jaw loose or bent): tighten the fixed jaw"

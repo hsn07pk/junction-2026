@@ -46,8 +46,11 @@ def cmd(c, timeout=120):
     raise Stop("motion server timeout")
 
 
+ACCEL = 60.0  # joint acceleration of move() and pick_any.move_rel(); the sort loop sets it from its motion profile
+
+
 def move(q, speed=5.0, comp=True):
-    st = cmd({"op": "move", "q": [float(x) for x in q], "speed": speed, "comp": comp})
+    st = cmd({"op": "move", "q": [float(x) for x in q], "speed": speed, "comp": comp, "accel": ACCEL})
     if st["status"] != "ok":
         raise Stop(f"move -> {st['status']} {st['msg']}")
     return st

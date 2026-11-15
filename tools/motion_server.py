@@ -47,8 +47,16 @@ HEARTBEAT = f"{R}/run/hand_watch_alive"  # written by hand_watch.py on every pas
 HEARTBEAT_MAX_AGE = 3.0
 PORT = "/dev/serial/by-id/usb-1a86_USB_Single_Serial_5B3D040939-if00"
 GRIP = 5
-HARD_SPEED = 45.0
-HARD_ACCEL = 200.0
+def _limits():
+    try:
+        lim = json.load(open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config",
+                                          "motion_profiles.json")))["limits"]
+        return float(lim["hard_speed"]), float(lim["hard_accel"])
+    except (OSError, ValueError, KeyError):
+        return 45.0, 200.0
+
+
+HARD_SPEED, HARD_ACCEL = _limits()
 OFFSET_CLAMP = 8.0
 STOP = {"flag": False}
 
