@@ -88,20 +88,42 @@ def blobs(img, min_area=2500, max_area=60000):
         fg = fn(H, S, V) & ~jaw
         fg8 = cv2.morphologyEx(fg.astype(np.uint8) * 255, cv2.MORPH_OPEN, np.ones((7, 7), np.uint8))
         masks[cname] = cv2.morphologyEx(fg8, cv2.MORPH_CLOSE, np.ones((9, 9), np.uint8)) > 0
-    # One blob per brick whatever its faces' colour classes: a cream brick's light top reads white and its sides
-    # yellow, and tracking one class alone followed a side sliver (05:56Z: short 40 px, yaw 88 deg, brick lost). The
-    # pieces of all classes are joined on a 15 px bridge (18:16Z: one brick split into top/side pieces); the blob
-    # takes the class with the most pixels and is measured on the real pixels only.
-    union = np.zeros(H.shape, bool)
-    for m_ in masks.values():
-        union |= m_
-    bridge = cv2.dilate(union.astype(np.uint8) * 255, np.ones((15, 15), np.uint8))
-    n, lab, st, cen = cv2.connectedComponentsWithStats(bridge)
-    for i in range(1, n):
-        if int(st[i, 4]) < min_area:
-            continue
-        comp = lab == i
-        cname = max(masks, key=lambda c: int((masks[c] & comp).sum()))
+    # Pieces of one colour class are joined on a 15 px bridge (18:16Z: one white brick split into top/side pieces).
+    # Pieces of different classes are joined only where their pixels touch (a cream brick's light top reads white and
+    # its sides yellow: tracking one class alone followed a side sliver, 05:56Z), so two bricks of different colours
+    # with mat between them stay two blobs. A blob takes the class with the most pixels; it is measured on the real
+    # pixels only.
+    pieces = []
+    for cname, mk in masks.items():
+        n_c, lab_c, st_c, _ = cv2.connectedComponentsWithStats(cv2.dilate(mk.astype(np.uint8), np.ones((15, 15), np.uint8)))
+        for i in range(1, n_c):
+            pm = (lab_c == i) & mk
+            if pm.any():
+                pieces.append((cname, pm))
+    parent = list(range(len(pieces)))
+
+    def root(i):
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+    grown = [cv2.dilate(pm.astype(np.uint8), np.ones((5, 5), np.uint8)) > 0 for _, pm in pieces]
+    for i in range(len(pieces)):
+        for j in range(i + 1, len(pieces)):
+            if pieces[i][0] != pieces[j][0] and (grown[i] & pieces[j][1]).any():
+                parent[root(i)] = root(j)
+    groups = {}
+    for i in range(len(pieces)):
+        groups.setdefault(root(i), []).append(i)
+    for idx in groups.values():
+        m_all = np.zeros(H.shape, bool)
+        count = {}
+        for i in idx:
+            m_all |= pieces[i][1]
+            count[pieces[i][0]] = count.get(pieces[i][0], 0) + int(pieces[i][1].sum())
+        cname = max(count, key=count.get)
+        comp = m_all
+        union = m_all
         if True:
             m = comp & union
             a = int(m.sum())
