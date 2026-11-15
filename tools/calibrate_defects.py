@@ -123,6 +123,9 @@ def main():
     ap.add_argument("labels", nargs="?", default=os.path.join(LOG_ROOT, "sort", "labels.json"),
                     help="labels file (default: the one sort_any.py --calibrate writes)")
     ap.add_argument("--write", action="store_true")
+    ap.add_argument("--clean-only", action="store_true",
+                    help="fit from clean bricks alone (no defective brick surveyed yet): the margins come from the clean "
+                         "surveys and only the clean hold-out is checked; defects are checked later on labelled runs")
     a = ap.parse_args()
     t0 = time.time()
     lab = json.load(open(a.labels))
@@ -153,8 +156,8 @@ def main():
         print(f"  {s['ep']} {s['key']} {s['brick']} {s['truth']}: required " +
               " ".join(f"{ch}={v:.4g}" for ch, v in s["req"].items()))
     model = fit(surveys, cfg)
-    if model is None or not any(s["truth"] == "DEFECT" for s in surveys):
-        sys.exit("need surveys of clean and of defective bricks")
+    if model is None or (not any(s["truth"] == "DEFECT" for s in surveys) and not a.clean_only):
+        sys.exit("need surveys of clean and of defective bricks (or --clean-only)")
     right, wrong = 0, []
     for b in ids:
         mi = fit([s for s in surveys if s["brick"] != b], cfg)
@@ -181,6 +184,7 @@ def main():
                          "labels_source": lab.get("source"), "surveys": len(surveys), "physical_bricks": len(ids),
                          "clean_surveys": sum(s["truth"] == "GOOD" for s in surveys), "holdout_right": right,
                          "holdout_total": len(surveys), "holdout_wrong": wrong, "defects_missed": missed,
+                         "clean_only": bool(a.clean_only and not any(s["truth"] == "DEFECT" for s in surveys)),
                          "inspection_config": cfg}
     print(json.dumps({k: v for k, v in out.items() if k != "provenance"}, indent=1))
     print(f"calibrated in {time.time() - t0:.0f} s")
