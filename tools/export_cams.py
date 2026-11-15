@@ -20,27 +20,33 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import make_demo as md  # noqa: E402
 
 
-def window(root: str, runs: list[str], margin: float) -> tuple[float, float]:
-    t0, t1 = None, None
+def windows(root: str, runs: list[str], margin: float, episodes: set | None) -> list[tuple[float, float]]:
+    """One window over all episodes of the runs, or one window per chosen episode (in time order)."""
+    spans = []
     for run in runs:
-        for f in glob.glob(os.path.join(root, "logs", "sort", run, "ep_*", "episode.json")):
+        for f in sorted(glob.glob(os.path.join(root, "logs", "sort", run, "ep_*", "episode.json"))):
+            num = int(os.path.basename(os.path.dirname(f)).split("_")[1])
+            if episodes is not None and num not in episodes:
+                continue
             try:
                 e = json.load(open(f))
             except (OSError, ValueError):
                 continue
             a, b = e.get("t_start"), e.get("t_end")
-            if isinstance(a, (int, float)):
-                t0 = a if t0 is None else min(t0, a)
-            if isinstance(b, (int, float)):
-                t1 = b if t1 is None else max(t1, b)
-    if t0 is None or t1 is None:
+            if isinstance(a, (int, float)) and isinstance(b, (int, float)) and b > a:
+                spans.append((a - margin, b + margin))
+    if not spans:
         raise SystemExit(f"no episode times in runs {runs}")
-    return t0 - margin, t1 + margin
+    spans.sort()
+    if episodes is None:
+        return [(spans[0][0], max(b for _, b in spans))]
+    return spans
 
 
-def export(cam: str, segs: list, t0: float, t1: float, out: str, tmp: str) -> float:
+def export(cam: str, segs: list, spans: list, out: str, tmp: str) -> float:
     parts = []
-    for s in segs:
+    for t0, t1 in spans:
+      for s in segs:
         a, b = max(t0, s.start), min(t1, s.end if s.end is not None else t1)
         if b - a < 0.2:
             continue
@@ -65,9 +71,12 @@ def main():
     ap.add_argument("--runs", required=True, help="comma-separated run names under logs/sort")
     ap.add_argument("--out-dir", required=True)
     ap.add_argument("--margin", type=float, default=3.0)
+    ap.add_argument("--episodes", default=None, help="only these episodes (list or ranges, as make_demo.py), joined in order")
     a = ap.parse_args()
     runs = [r for r in a.runs.split(",") if r]
-    t0, t1 = window(a.root, runs, a.margin)
+    eps = set(md.episode_arg(a.episodes)) if a.episodes else None
+    spans = windows(a.root, runs, a.margin, eps)
+    t0, t1 = spans[0][0], spans[-1][1]
     os.makedirs(a.out_dir, exist_ok=True)
     tmp = os.path.join(a.out_dir, "parts")
     os.makedirs(tmp, exist_ok=True)
@@ -78,11 +87,11 @@ def main():
         near = [(ep, p) for ep, p in files if t0 - 4000 <= ep <= t1]  # only segments that can overlap the window
         segs = md.load_segments(cam, near, notes)
         out = os.path.join(a.out_dir, f"{tag}_{cam}.mp4")
-        n = export(cam, segs, t0, t1, out, tmp)
+        n = export(cam, segs, spans, out, tmp)
         print(f"{cam}: {n} piece(s) -> {out if n else 'nothing recorded in the window'}")
     for n in notes:
         print("note:", n)
-    print(f"window {md.utc(t0)} .. {md.utc(t1)} ({t1 - t0:.0f} s)")
+    print(f"{len(spans)} window(s) {md.utc(t0)} .. {md.utc(t1)} ({sum(b - a for a, b in spans):.0f} s in all)")
 
 
 if __name__ == "__main__":
