@@ -440,6 +440,8 @@ def run_views(views, sdir, tag, q_from, q_to):
     out = []
     for i, v in enumerate(srv.order_views(q_from, views, q_to)):
         ga.move(list(v["q"]) + [25.0], speed=CFG["transit"], comp=False)
+        if CFG.get("settle_s"):  # let the camera stop moving after a fast stop before the photograph
+            time.sleep(CFG["settle_s"])
         img = pa.frame()
         qa = ga.state()["present"][:5]
         if img is None:
@@ -1161,6 +1163,7 @@ def main():
     os.makedirs(RUN, exist_ok=True)
     prof = PROFILES[a.profile]
     CFG.update({k: float(prof[k]) for k in ("transit", "hover", "servo", "desc", "final")})
+    CFG["settle_s"] = float(prof.get("settle_s", 0.0))
     hard = float(PROFILES["limits"]["hard_speed"])
     for key in ("transit", "hover", "servo", "desc"):
         CFG[key] = min(hard, CFG[key] * a.speed)

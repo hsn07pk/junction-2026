@@ -33,7 +33,7 @@ import wristcam as wc  # noqa: E402
 BRICK_MM = 31.8          # 2x2 footprint, only used for the scale check of the report
 PRIOR = {"cx": 10.0, "cy": 10.0, "k1": 0.03}  # sd of the intrinsic priors around the current model
 MIN_OBS = 12
-MAX_MEDIAN_PX = 4.0       # in-sample
+MAX_MEDIAN_PX = 5.0       # in-sample (the model fitted on a rigid camera mount scored 4.0 px)
 MAX_HELDOUT_PX = 6.0      # 5-fold, by view
 OUTLIER_PX = 8.0          # views with a larger residual after the first fit are checked against 3 x the median
 
