@@ -155,8 +155,14 @@ def record_scan_pair(px, q_hover):
 
 
 def brick_xy_from_scan(q_scan, b, c):
-    """Base-frame offset (mm) of a brick seen from the scan pose relative to the point under the jaws (scan Jacobian
-    with the learned similarity correction)."""
+    """Base-frame offset (mm) of a brick seen from the scan pose relative to the point under the jaws: through the
+    wrist camera model when there is one (it is re-fitted whenever the camera moves on the gripper, while the learned
+    scan map below keeps pairs from before such a move), else the scan Jacobian with the learned correction."""
+    if srv.wc.M is not None:
+        qd = list(np.asarray(list(q_scan)[:5], float) + srv.wc._DQ)
+        p, _ = kin.fk(qd)
+        xy = srv.wc.pixel_to_mat(q_scan, b["centre"])
+        return np.array([xy[0] - p[0], xy[1] - p[1]])
     if SCAN_H is not None and SCAN_HULL is not None and cv2.pointPolygonTest(
             SCAN_HULL, (float(b["centre"][0]), float(b["centre"][1])), True) >= -40.0:
         p, _ = kin.fk(q_scan)

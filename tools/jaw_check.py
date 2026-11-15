@@ -99,7 +99,7 @@ def main():
                 "gap_centre_x": round(gx, 1), "target_px": [round(gx + 3, 1), round(268.0 + common[1], 1)]})
     if a.accept_bent and len(meas) >= 2:  # the jaws as they are over all rolls: union of the measured masks, widened by the spread
         keep = np.max([m[0] for m in meas], axis=0).astype(np.uint8)
-        w = 17 + 2 * int(np.ceil(out["spread_px"] or 0.0))
+        w = 17 + 2 * int(np.ceil(min(out["spread_px"] or 0.0, a.fail)))
         mask = cv2.dilate(keep, np.ones((w, w), np.uint8))
     else:
         mask = cv2.dilate(keep, np.ones((17, 17), np.uint8))
@@ -113,6 +113,11 @@ def main():
         out["ok"] = dg <= a.tol
         print(json.dumps(out))
         return 0 if out["ok"] else 3
+    if a.accept_bent and out["spread_px"] is not None and out["spread_px"] > 2 * a.fail:
+        out["ok"] = False  # a red brick next to the jaws joined a jaw in some roll: keep the last accepted jaws
+        out["error"] = f"jaw check contaminated: tips spread {out['spread_px']}px over the rolls (a red object next to the jaws)"
+        print(json.dumps(out))
+        return 3
     if dg > a.fail and a.accept_bent and len(meas) >= 2:  # loose jaw that cannot be fixed: the jaws as they are now
         out["bent_accepted"] = f"jaw gap {dg:.0f}px from the tight reference, {out['spread_px']}px spread over the rolls"
     elif dg > a.fail:
