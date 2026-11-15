@@ -472,7 +472,7 @@ def survey_views(q_hover, meas, sp, model, sdir, tag):
     if rest:
         views += run_views(rest, sdir, tag, q_hover, q_hover)
     with ThreadPoolExecutor(1) as ex:  # the inspection runs while the arm goes back to the hover
-        job = ex.submit(dfx.inspect, views, faces3d, model, None, ALIGN_SEARCH_PX, pa.jaw_mask_views([v["img"] for v in views]))
+        job = ex.submit(dfx.inspect, views, faces3d, model, None, ALIGN_SEARCH_PX, ga.JAW_MASK)
         if rest:
             ga.move(list(q_hover) + [25.0], speed=CFG["transit"], comp=True)
         res, summ = job.result()

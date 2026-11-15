@@ -35,7 +35,6 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from paths import APP, LOG_ROOT  # noqa: E402
 import defects as dfx  # noqa: E402
 import kin  # noqa: E402
-import pick_any as pa  # noqa: E402
 import survey as sv  # noqa: E402
 
 CHANNELS = {"kappa_chroma": ("zc", sv.FACES), "kappa_light_top": ("zl", ("top",)),
@@ -141,8 +140,7 @@ def main():
             skipped.append((ep, f"brick {bid} has no truth"))
             continue
         for s in surveys_of(os.path.join(LOG_ROOT, "sort", ep), sp):
-            jv = pa.jaw_mask_views([v["img"] for v in s["views"]])
-            obs = dfx.observe(s["views"], s["faces3d"], cfg, search_px, jv if jv is not None else jaw, sp)
+            obs = dfx.observe(s["views"], s["faces3d"], cfg, search_px, jaw, sp)
             if not obs.get("ok"):
                 skipped.append((ep, s["key"], obs.get("why")))
                 continue
