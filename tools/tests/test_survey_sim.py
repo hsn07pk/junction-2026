@@ -96,10 +96,16 @@ def test_scene_plates_found_and_brick_clusters_not_taken_for_plates():
     cluster = [sim.brick((262.0 + 31.8 * i, 40.0 + 31.8 * j), 0.0, (200, 90, 20)) for i in range(2) for j in range(2)]
     img = sim.render(q_scan, cluster, list(truth.values()), seed=5)
     found = scene.plates(img, q_scan, sv.spec())
-    assert set(found) == set(truth), found
+    assert set(found) == set(truth) and all(v["reliable"] for v in found.values()), found
     for k, (xy, r, _) in truth.items():
         assert math.hypot(found[k]["xy"][0] - xy[0], found[k]["xy"][1] - xy[1]) < 3.0 and abs(found[k]["r_mm"] - r) < 3.0, found
-    with tempfile.TemporaryDirectory() as d, mock.patch.object(sa, "PLATES_F", os.path.join(d, "plates.json")):
+    hidden = scene.plates(img, q_scan, sv.spec(), ignore=sa.ga.JAW_MASK)  # the jaws hide part of the view
+    assert set(hidden) == set(truth), hidden  # still found by colour; the circle only where enough rim shows
+    for k, v in hidden.items():
+        if v["reliable"]:
+            assert math.hypot(v["xy"][0] - truth[k][0][0], v["xy"][1] - truth[k][0][1]) < 3.0, (k, v)
+    with tempfile.TemporaryDirectory() as d, mock.patch.object(sa, "PLATES_F", os.path.join(d, "plates.json")), \
+            mock.patch.object(sa.ga, "JAW_MASK", None):  # the virtual camera shows no jaws
         sa.see_plates(img, q_scan)
         for k, (xy, r, _) in truth.items():
             pts = sa.drop_points(k)

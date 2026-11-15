@@ -209,25 +209,32 @@ def plates_seen():
 
 
 def see_plates(img, q_scan):
-    """The plates in this scan frame (scene.plates: found by colour and shape, centre and radius on the mat), merged
-    into the record of where each plate was last seen. Returns {colour: {"xy", "r_mm", ...}} known now."""
+    """The plates in this scan frame (scene.plates: by colour, and by shape when the rim shows enough of a circle),
+    merged into the record of where each plate was last measured. Returns (plates measured now or before:
+    {colour: {"xy", "r_mm", ...}}, the plate pixels of this frame)."""
     rec = plates_seen()
     try:
-        now = scene.plates(img, q_scan, srv.spec())
+        now = scene.plates(img, q_scan, srv.spec(), ignore=ga.JAW_MASK)
     except Exception as e:  # noqa: BLE001
         log(f"plate detection failed: {e!r}")
         now = {}
+    pix = np.zeros(img.shape[:2], bool)
+    changed = False
     for k, v in now.items():
-        rec["plates"][k] = dict(v, t=time.time())
-    if now:
+        pix |= v["mask"]
+        if v["reliable"]:
+            rec["plates"][k] = {kk: vv for kk, vv in v.items() if kk != "mask"}
+            rec["plates"][k]["t"] = time.time()
+            changed = True
+    if changed:
         with open(PLATES_F + ".tmp", "w") as f:
             json.dump(rec, f)
         os.replace(PLATES_F + ".tmp", PLATES_F)
-    return rec["plates"]
+    return rec["plates"], pix
 
 
 def near_plate(xy, plates, sp):
-    """A brick at xy lies on or against a known plate (inside its radius plus half the brick's diagonal)."""
+    """A brick at xy lies on or against a measured plate (inside its radius plus half the brick's diagonal)."""
     reach = sp["footprint_mm"] * math.sqrt(0.5)
     return any(math.hypot(xy[0] - v["xy"][0], xy[1] - v["xy"][1]) < v["r_mm"] + reach for v in plates.values())
 
@@ -236,10 +243,15 @@ def candidates(img, q_scan, c):
     out = []
     p, _ = kin.fk(q_scan)
     sp = srv.spec()
-    plates = see_plates(img, q_scan)
+    plates, pix = see_plates(img, q_scan)
+    slack = int(round(0.25 * math.sqrt(max(1.0, scene.brick_area_px(q_scan, p[:2], sp)))))  # a quarter brick, in px
+    pix = cv2.dilate(pix.astype(np.uint8), np.ones((2 * slack + 1, 2 * slack + 1), np.uint8)) > 0
     for b in pa.blobs(img, min_area=700, max_area=40000):
         if b["plate_frac"] >= 0.3 or (b.get("colour") in ("blue", "green") and b["plate_frac"] >= 0.15):
             continue  # inside a plate, or a plate rim fragment
+        cx, cy = int(round(b["centre"][0])), int(round(b["centre"][1]))
+        if 0 <= cy < pix.shape[0] and 0 <= cx < pix.shape[1] and pix[cy, cx]:
+            continue  # on a plate seen in this frame
         d = brick_xy_from_scan(q_scan, b, c)
         xy = (p[0] + d[0], p[1] + d[1])
         if near_plate(xy, plates, sp):
@@ -511,7 +523,8 @@ def survey_here(k, q_hover, bh, b, cand):
     radius = sp["footprint_mm"] / 2 + sp["height_mm"] / math.tan(max(lowest_view_elevation(plan["views"], meas["xy"], sp),
                                                                      1e-3)) + 2 * sig
     scan = (EPIMG.get("pre") or {}).get("wrist")
-    iso = scene.isolated(scan, scan_cal()["q_scan"], meas["xy"], meas["yaw"], sp, radius, 2 * sig) if scan is not None else \
+    iso = scene.isolated(scan, scan_cal()["q_scan"], meas["xy"], meas["yaw"], sp, radius, 2 * sig, ga.JAW_MASK) \
+        if scan is not None else \
         {"isolated": False, "why": "no scan image"}
     out["isolation"] = iso
     if not iso.get("isolated"):
@@ -535,7 +548,7 @@ def free_spot(sp):
     q_scan = scan_cal()["q_scan"]
     spots = [plan["spot_xy"]] + [s[1:] for s in plan.get("ranked_spots", []) if s[1:] != plan["spot_xy"]]
     for xy in spots:
-        fr = scene.spot_free(scan, q_scan, xy, sp, 2 * pos_sigma_mm(sp))
+        fr = scene.spot_free(scan, q_scan, xy, sp, 2 * pos_sigma_mm(sp), ga.JAW_MASK)
         if fr.get("free"):
             q_h = kin.ik(xy[0], xy[1], kin.MAT_Z + pa.HOVER_DZ, kin.psi_of(plan["q_hover"]), plan["q_hover"])
             if q_h is not None:

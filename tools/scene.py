@@ -81,7 +81,7 @@ def objects_in(img: np.ndarray, q, region: np.ndarray, ignore: np.ndarray | None
     return [int(st[i, 4]) for i in range(1, n) if st[i, 4] >= min_px]
 
 
-def spot_free(img: np.ndarray, q, xy, sp: dict, margin_mm: float) -> dict:
+def spot_free(img: np.ndarray, q, xy, sp: dict, margin_mm: float, ignore: np.ndarray | None = None) -> dict:
     """Is a spot free for a brick (nothing but mat within half the footprint diagonal plus margin_mm, up to a
     brick's height)? Objects smaller than a tenth of a brick's top face are noise. Off-image spots are not free."""
     r = sp["footprint_mm"] * math.sqrt(0.5) + margin_mm
@@ -91,11 +91,12 @@ def spot_free(img: np.ndarray, q, xy, sp: dict, margin_mm: float) -> dict:
     if not np.all((uv[:, 0] >= 0) & (uv[:, 0] < W) & (uv[:, 1] >= 0) & (uv[:, 1] < H)):
         return {"free": False, "why": "spot not fully in view"}
     region = footprint_mask(q, img.shape, pts)
-    objs = objects_in(img, q, region, None, 0.1 * brick_area_px(q, xy, sp))
+    objs = objects_in(img, q, region, ignore, 0.1 * brick_area_px(q, xy, sp))
     return {"free": not objs, "objects_px": objs, "radius_mm": round(r, 1)}
 
 
-def isolated(img: np.ndarray, q, xy, yaw: float, sp: dict, radius_mm: float, own_margin_mm: float) -> dict:
+def isolated(img: np.ndarray, q, xy, yaw: float, sp: dict, radius_mm: float, own_margin_mm: float,
+             ignore: np.ndarray | None = None) -> dict:
     """Is the brick at xy (yaw) alone within radius_mm? Its own projected box, grown by own_margin_mm (position
     uncertainty), is ignored; any other object (brick, plate rim, cable, hand) inside the radius counts."""
     import survey as sv  # local: survey imports scene-free modules only
@@ -104,6 +105,8 @@ def isolated(img: np.ndarray, q, xy, yaw: float, sp: dict, radius_mm: float, own
     own_mask = footprint_mask(q, img.shape, [p for f in own.values() for p in f["pts"]])
     pts = cylinder_pts(xy, radius_mm, kin.MAT_Z, kin.MAT_Z + sp["height_mm"])
     region = footprint_mask(q, img.shape, pts)
+    if ignore is not None and ignore.shape == own_mask.shape:
+        own_mask = own_mask | ignore
     objs = objects_in(img, q, region, own_mask, 0.1 * brick_area_px(q, xy, sp))
     return {"isolated": not objs, "objects_px": objs, "radius_mm": round(radius_mm, 1)}
 
@@ -129,14 +132,30 @@ def _circle_fit(xy: np.ndarray) -> tuple[np.ndarray, float]:
     return ctr, float(math.sqrt(max(c[2] + ctr @ ctr, 0.0)))
 
 
-def plates(img: np.ndarray, q, sp: dict, z_mm: float | None = None) -> dict:
+def _hue_median(img: np.ndarray, mask: np.ndarray) -> float:
+    """Circular median-like hue (degrees) of the masked pixels: the direction of the mean unit hue vector over the most
+    saturated half (a few pixels of another colour at the rim do not drag it)."""
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV_FULL)
+    h = hsv[..., 0][mask].astype(np.float32) * (2 * math.pi / 256.0)
+    s = hsv[..., 1][mask].astype(np.float32)
+    if h.size == 0:
+        return 0.0
+    top = s >= np.median(s)
+    a = math.atan2(float(np.sin(h[top]).sum()), float(np.cos(h[top]).sum()))
+    return (math.degrees(a) + 360.0) % 360.0
+
+
+def plates(img: np.ndarray, q, sp: dict, z_mm: float | None = None, ignore: np.ndarray | None = None) -> dict:
     """The blue and the green plate in this image: not-mat regions of plate colour (hue nearer one plate colour than
-    the other, chroma well above the mat's), whose boundary, mapped onto the mat plane, is a circle (least squares;
-    the image edge is not the rim, so a plate cut by the edge is still measured) at least twice as large as the
-    largest brick (a 2x4 covers two footprints): a cluster of blue or green bricks is neither round nor that large.
-    Returns {colour: {"xy", "r_mm", "px", "hue_deg", "rms_mm"}}."""
+    the other, chroma well above the mat's), larger than a brick. Each gets its pixel mask, and, when its rim seen
+    inside the image is a long enough arc (at least a quarter turn about the fitted centre, points within 5 % of the
+    radius), the circle on the mat (centre, radius; the image edge is not the rim) at least twice the largest brick.
+    ignore: pixels that are never scene (the jaws in the wrist view).
+    Returns {colour: {"mask", "px", "hue_deg", "reliable", and when reliable "xy", "r_mm", "rms_mm", "arc_deg"}}."""
     z = kin.MAT_Z if z_mm is None else z_mm
     nm, _ = not_mat(img)
+    if ignore is not None and ignore.shape == nm.shape:
+        nm &= ~ignore
     mat_c, mat_s = _chroma_stats(img, ~nm)
     n, lab, st, _ = cv2.connectedComponentsWithStats(nm.astype(np.uint8))
     ctr_px = np.array([img.shape[1] / 2.0, img.shape[0] / 2.0])
@@ -144,29 +163,36 @@ def plates(img: np.ndarray, q, sp: dict, z_mm: float | None = None) -> dict:
     r_min = math.sqrt(4.0 / math.pi) * sp["footprint_mm"]  # area of four footprints
     found = {}
     H, W = img.shape[:2]
+    near_ignore = cv2.dilate(ignore.astype(np.uint8), np.ones((7, 7), np.uint8)) > 0 \
+        if ignore is not None and ignore.shape == nm.shape else None
     for i in range(1, n):
         if st[i, 4] < unit:  # smaller than one brick here: not a plate
             continue
-        m = (lab == i).astype(np.uint8)
-        reg_c, _ = _chroma_stats(img, m > 0)
+        m = lab == i
+        reg_c, _ = _chroma_stats(img, m)
         if reg_c <= mat_c + 6.0 * max(mat_s, 1e-3):  # hue means nothing without colour well above the mat's noise
             continue
-        h = _hue_deg(cv2.mean(img, mask=m)[:3])
+        h = _hue_median(img, m)
         dist = {k: min(abs(h - v), 360.0 - abs(h - v)) for k, v in PLATE_HUE_DEG.items()}
         name = min(dist, key=dist.get)
         if dist[name] > abs(PLATE_HUE_DEG["blue"] - PLATE_HUE_DEG["green"]) / 2.0:  # nearer neither plate colour
             continue
-        cs, _ = cv2.findContours(m, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+        rec = {"mask": m, "px": int(st[i, 4]), "hue_deg": round(h, 1), "reliable": False}
+        cs, _ = cv2.findContours(m.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
         pts = max(cs, key=len).reshape(-1, 2)
         inner = pts[(pts[:, 0] > 1) & (pts[:, 0] < W - 2) & (pts[:, 1] > 1) & (pts[:, 1] < H - 2)]  # image edge is not the rim
-        if len(inner) < 20:
-            continue
-        w = np.array([wc.pixel_to_mat(q, p, z) for p in inner[:: max(1, len(inner) // 200)]])
-        c, r = _circle_fit(w)
-        rms = float(np.sqrt(np.mean((np.hypot(w[:, 0] - c[0], w[:, 1] - c[1]) - r) ** 2)))
-        if r < r_min or rms > 0.08 * r:
-            continue
-        if name not in found or st[i, 4] > found[name]["px"]:
-            found[name] = {"xy": [round(float(c[0]), 1), round(float(c[1]), 1)], "r_mm": round(r, 1), "px": int(st[i, 4]),
-                           "hue_deg": round(h, 1), "rms_mm": round(rms, 2)}
+        if near_ignore is not None and len(inner):
+            inner = inner[~near_ignore[inner[:, 1], inner[:, 0]]]  # nor is the edge of what hides the plate (the jaws)
+        if len(inner) >= 20:
+            w = np.array([wc.pixel_to_mat(q, p, z) for p in inner[:: max(1, len(inner) // 200)]])
+            c, r = _circle_fit(w)
+            rms = float(np.sqrt(np.mean((np.hypot(w[:, 0] - c[0], w[:, 1] - c[1]) - r) ** 2)))
+            ang = np.sort(np.arctan2(w[:, 1] - c[1], w[:, 0] - c[0]))
+            gaps = np.diff(np.concatenate([ang, ang[:1] + 2 * math.pi]))
+            arc = math.degrees(2 * math.pi - float(gaps.max()))
+            if r >= r_min and rms <= 0.05 * r and arc >= 90.0:
+                rec.update(reliable=True, xy=[round(float(c[0]), 1), round(float(c[1]), 1)], r_mm=round(r, 1),
+                           rms_mm=round(rms, 2), arc_deg=round(arc, 1))
+        if name not in found or rec["px"] > found[name]["px"]:
+            found[name] = rec
     return found
